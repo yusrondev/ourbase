@@ -137,6 +137,24 @@ export const CHARACTER_CONFIG = {
       hurt: { frames: 3, rate: 8, repeat: 0 }
     }
   },
+  lunaria: {
+    folder: 'lunaria',
+    frameWidth: 140,
+    frameHeight: 140,
+    hp: 180,
+    attack: 40,
+    speed: 90,
+    scale: 1,
+    attackType: 'ranged',
+    attackRange: 400,
+    animations: {
+      idle: { frames: 10, rate: 8, repeat: -1 },
+      walk: { frames: 8, rate: 10, repeat: -1 },
+      attack: { frames: 13, rate: 12, repeat: 0 },
+      death: { frames: 18, rate: 10, repeat: 0 },
+      hurt: { frames: 3, rate: 8, repeat: 0 }
+    }
+  },
   monk: {
     name: 'Monk',
     role: 'Support',
@@ -173,25 +191,25 @@ export const CHARACTER_CONFIG = {
       guard: { frames: 6, rate: 10, repeat: 0 }
     }
   },
-  gondaf: {
-    name: 'Gondaf',
+  lyra: {
+    name: 'Lyra',
     role: 'Marksman',
     description: 'Pemanah jitu yang mampu menyerang dari jarak jauh dengan presisi tinggi.',
-    folder: 'gondaf',
-    frameWidth: 64,
-    frameHeight: 64,
-    hp: 80,
-    attack: 40,
-    speed: 180,
+    folder: 'lyra',
+    frameWidth: 100,
+    frameHeight: 100,
+    hp: 40,
+    attack: 45,
+    speed: 80,
     scale: 1,
-    singleSpritesheet: 'all.png',
     attackType: 'ranged',
+    attackRange: 150,
     animations: {
-      idle: { start: 0, end: 4, rate: 8, repeat: -1 },
-      walk: { start: 22, end: 29, rate: 10, repeat: -1 },
-      attack: { start: 11, end: 21, rate: 12, repeat: 0 },
-      hurt: { start: 33, end: 37, rate: 8, repeat: 0 },
-      death: { start: 44, end: 49, rate: 8, repeat: 0 }
+      idle: { frames: 10, rate: 8, repeat: -1 },
+      walk: { frames: 8, rate: 10, repeat: -1 },
+      attack: { frames: 6, rate: 12, repeat: 0 },
+      hurt: { frames: 3, rate: 8, repeat: 0 },
+      death: { frames: 10, rate: 8, repeat: 0 }
     }
   },
   kael: {
@@ -236,7 +254,7 @@ export const CHARACTER_CONFIG = {
   },
   shifu: {
     name: 'Shifu',
-    role: 'Monk',
+    role: 'Assassin',
     description: 'Guru bijaksana dengan kecepatan serangan luar biasa',
     folder: 'shifu',
     frameWidth: 200,
@@ -252,6 +270,26 @@ export const CHARACTER_CONFIG = {
       attack2: { frames: 6, rate: 15, repeat: 0 },
       hurt: { frames: 4, rate: 8, repeat: 0 },
       death: { frames: 6, rate: 8, repeat: 0 }
+    }
+  },
+  mystic: {
+    name: 'Mystic',
+    role: 'Mage',
+    description: 'Penyihir handal dengan serangan sihir jarak dekat yang mematikan',
+    folder: 'mystic',
+    frameWidth: 231,
+    frameHeight: 190,
+    hp: 70,
+    attack: 45,
+    speed: 80,
+    scale: 0.6,
+    animations: {
+      idle: { frames: 6, rate: 8, repeat: -1 },
+      walk: { frames: 8, rate: 12, repeat: -1 },
+      attack: { frames: 8, rate: 12, repeat: 0 },
+      attack2: { frames: 8, rate: 12, repeat: 0 },
+      hurt: { frames: 4, rate: 8, repeat: 0 },
+      death: { frames: 7, rate: 8, repeat: 0 }
     }
   }
 };

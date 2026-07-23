@@ -11,8 +11,12 @@ export default class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    // Assets are already preloaded globally by SelectionScene!
-    this.load.image('arrow', '/characters/gondaf/arrow.png');
+    // Load arrow for ranged attacks (now from lyra)
+    this.load.image('arrow', '/characters/lyra/arrow.png');
+    
+    // Load lunaria projectiles
+    this.load.spritesheet('lunaria_explode', '/characters/lunaria/projectile/explode.png', { frameWidth: 50, frameHeight: 50 });
+    this.load.spritesheet('lunaria_moving', '/characters/lunaria/projectile/moving.png', { frameWidth: 50, frameHeight: 50 });
   }
 
   create() {
@@ -25,8 +29,27 @@ export default class GameScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, this.WORLD_WIDTH, this.WORLD_HEIGHT);
 
     this.enemies = []; // Central array for enemies
-    this.enemyGroup = this.physics.add.group(); // Physics group for collisions
-    this.projectiles = this.physics.add.group(); // Group for ranged attacks
+    this.enemyGroup = this.physics.add.group();
+    
+    // Projectiles
+    this.projectiles = this.physics.add.group();
+    this.enemyProjectiles = this.physics.add.group();
+
+    // Create lunaria projectile animations
+    if (!this.anims.exists('lunaria_explode')) {
+      this.anims.create({
+        key: 'lunaria_explode',
+        frames: this.anims.generateFrameNumbers('lunaria_explode', { start: 0, end: 6 }),
+        frameRate: 15,
+        repeat: 0
+      });
+      this.anims.create({
+        key: 'lunaria_moving',
+        frames: this.anims.generateFrameNumbers('lunaria_moving', { start: 0, end: 3 }),
+        frameRate: 12,
+        repeat: -1
+      });
+    } // Group for ranged attacks
     
     // Setup projectile overlap
     this.physics.add.overlap(this.projectiles, this.enemyGroup, (projectile, enemy) => {
@@ -88,7 +111,41 @@ export default class GameScene extends Phaser.Scene {
     this.player.setCollideWorldBounds(true);
     this.player.hp = playerConfig.hp;
     this.playerMaxHp = playerConfig.hp;
+    
+    // Draw range indicator for ranged characters
+    if (playerConfig.attackType === 'ranged') {
+      this.rangeIndicator = this.add.graphics();
+      this.rangeRadius = playerConfig.attackRange || 500;
+      this.rangeIndicator.lineStyle(2, 0xffffff, 0.3);
+      this.rangeIndicator.strokeCircle(0, 0, this.rangeRadius);
+    }
     this.playerHpBar = this.add.graphics();
+    
+    // Handle enemy projectiles hitting player
+    this.physics.add.overlap(this.enemyProjectiles, this.player, (player, projectile) => {
+      if (this.isGuarding) {
+        // Reduced damage if guarding
+        player.hp -= Math.max(1, Math.floor(projectile.damage * 0.3));
+        this.showFloatingText(player.x, player.y - 40, `Blocked`, '#aaaaaa');
+      } else {
+        player.hp -= projectile.damage;
+        this.showFloatingText(player.x, player.y - 40, `-${projectile.damage}`, '#ff0000');
+        
+        if (player.hp > 0) {
+          player.isHurt = true;
+          player.play(`${this.characterKey}_hurt`, true);
+          player.setVelocity(0, 0);
+          player.on('animationcomplete', () => {
+            player.isHurt = false;
+          });
+        }
+      }
+      
+      const explode = this.add.sprite(projectile.x, projectile.y, 'lunaria_explode');
+      explode.play('lunaria_explode');
+      explode.on('animationcomplete', () => explode.destroy());
+      projectile.destroy();
+    });
     
     // 2. Camera Follows Player
     this.cameras.main.startFollow(this.player, true, 0.05, 0.05);
@@ -153,7 +210,9 @@ export default class GameScene extends Phaser.Scene {
       // Wave 4: Orc
       [{ type: 'orc', x: 1000, y: 1200 }],
       // Wave 5: Kaizer (Boss)
-      [{ type: 'kaizer', x: 1000, y: 1000, hpOverride: 500, scale: 1.5 }]
+      [{ type: 'kaizer', x: 1000, y: 1000, hpOverride: 500, scale: 1.5 }],
+      // Wave 6: Lunaria (Ranged Boss)
+      [{ type: 'lunaria', x: 1200, y: 1000, scale: 1 }]
     ];
     this.currentWaveIndex = 0;
     
@@ -226,7 +285,23 @@ export default class GameScene extends Phaser.Scene {
     // Check virtual button state change for 'JustDown' behavior
     const isVirtualActionDown = this.isBtnADown && !this.wasBtnADown;
     this.wasBtnADown = this.isBtnADown;
-    const isActionTriggered = Phaser.Input.Keyboard.JustDown(this.spaceBar) || isVirtualActionDown;
+    let isActionTriggered = Phaser.Input.Keyboard.JustDown(this.spaceBar) || isVirtualActionDown;
+    
+    // Prevent ranged attacks if no target is in range and facing
+    if (isActionTriggered && CHARACTER_CONFIG[this.characterKey].attackType === 'ranged') {
+      let hasTarget = false;
+      const maxRange = CHARACTER_CONFIG[this.characterKey].attackRange || 500;
+      this.enemies.forEach(enemy => {
+        if (enemy.hp <= 0) return;
+        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+        const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
+        if (dist < maxRange && isFacingEnemy) {
+          hasTarget = true;
+        }
+      });
+      if (!hasTarget) isActionTriggered = false;
+    }
+
     const isGuardTriggered = this.shiftKey.isDown || this.isBtnBDown;
 
     // Player Attack Logic
@@ -241,7 +316,7 @@ export default class GameScene extends Phaser.Scene {
     } else if (isActionTriggered && this.player.hp > 0) {
       this.isAttacking = true;
       let actionName = this.characterKey === 'monk' ? 'heal' : 'attack';
-      if (this.characterKey === 'kael' || this.characterKey === 'lucifer' || this.characterKey === 'shifu') {
+      if (this.characterKey === 'kael' || this.characterKey === 'lucifer' || this.characterKey === 'shifu' || this.characterKey === 'mystic') {
         actionName = Math.random() < 0.5 ? 'attack' : 'attack2';
       }
       this.player.play(`${this.characterKey}_${actionName}`, true);
@@ -286,7 +361,8 @@ export default class GameScene extends Phaser.Scene {
             const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
             // Must face the enemy
             const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
-            if (dist < 500 && dist < minHpEnemyDist && isFacingEnemy) {
+            const maxRange = CHARACTER_CONFIG[this.characterKey].attackRange || 500;
+            if (dist < maxRange && dist < minHpEnemyDist && isFacingEnemy) {
               minHpEnemyDist = dist;
               nearestEnemy = enemy;
             }
@@ -417,11 +493,12 @@ export default class GameScene extends Phaser.Scene {
       }
 
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-      const attackRange = (enemy.type === 'demon' || enemy.type === 'orc') ? 40 : 35;
+      const eConfig = CHARACTER_CONFIG[enemy.type];
+      const maxAttackRange = eConfig.attackRange || ((enemy.type === 'demon' || enemy.type === 'orc') ? 40 : 35);
 
       if (enemy.isAttacking) {
         enemy.setVelocity(0, 0);
-      } else if (dist < attackRange) {
+      } else if (dist < maxAttackRange) {
         // Enemy attacks
         enemy.isAttacking = true;
         enemy.setVelocity(0, 0);
@@ -432,48 +509,62 @@ export default class GameScene extends Phaser.Scene {
         enemy.play(`${enemy.type}_${eAction}`, true);
         enemy.flipX = (enemy.x > this.player.x);
         
-        // Delay attack hit
-        this.time.delayedCall(300, () => {
-          if (this.player.hp > 0 && enemy.hp > 0 && !enemy.isHurt) {
-            const currentDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-            if (currentDist < attackRange + 15) {
-              const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
-              if (this.isGuarding && isFacingEnemy) {
-                // Ignore damage, repel enemy
-                const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-                enemy.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);
-                setTimeout(() => { if (enemy && enemy.hp > 0) enemy.setVelocity(0); }, 150);
-              } else {
-                const dmg = CHARACTER_CONFIG[enemy.type].attack;
-                this.player.hp -= dmg;
-                this.showFloatingText(this.player.x, this.player.y - 40, `-${dmg}`, '#ff5555');
-                
-                if (this.player.hp <= 0) {
-                  this.playerHpBar.clear();
-                  this.player.setVelocity(0);
-                  if (this.anims.exists(`${this.characterKey}_death`)) {
-                    this.player.play(`${this.characterKey}_death`);
-                  }
-                  this.isGameOver = true;
+        // Delay attack hit or spawn projectile
+        if (eConfig.attackType === 'ranged') {
+          this.time.delayedCall(300, () => {
+            if (this.player.hp > 0 && enemy.hp > 0 && !enemy.isHurt) {
+              const projectile = this.enemyProjectiles.create(enemy.x, enemy.y, 'lunaria_moving');
+              projectile.play('lunaria_moving');
+              projectile.damage = eConfig.attack;
+              const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+              projectile.rotation = angle;
+              const speed = 250;
+              projectile.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+            }
+          });
+        } else {
+          this.time.delayedCall(300, () => {
+            if (this.player.hp > 0 && enemy.hp > 0 && !enemy.isHurt) {
+              const currentDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+              if (currentDist < maxAttackRange + 15) {
+                const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
+                if (this.isGuarding && isFacingEnemy) {
+                  // Ignore damage, repel enemy
+                  const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+                  enemy.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);
+                  setTimeout(() => { if (enemy && enemy.hp > 0) enemy.setVelocity(0); }, 150);
                 } else {
-                  this.isHurt = true;
-                  if (this.anims.exists(`${this.characterKey}_hurt`)) {
-                    this.player.play(`${this.characterKey}_hurt`, true);
+                  const dmg = eConfig.attack;
+                  this.player.hp -= dmg;
+                  this.showFloatingText(this.player.x, this.player.y - 40, `-${dmg}`, '#ff5555');
+                  
+                  if (this.player.hp <= 0) {
+                    this.playerHpBar.clear();
+                    this.player.setVelocity(0);
+                    if (this.anims.exists(`${this.characterKey}_death`)) {
+                      this.player.play(`${this.characterKey}_death`);
+                    }
+                    this.isGameOver = true;
                   } else {
-                    // Fallback for characters without hurt animation (like monk/tank)
-                    this.time.delayedCall(200, () => { this.isHurt = false; });
-                  }
-                  this.isAttacking = false; // Cancel attack if hit
+                    this.isHurt = true;
+                    if (this.anims.exists(`${this.characterKey}_hurt`)) {
+                      this.player.play(`${this.characterKey}_hurt`, true);
+                    } else {
+                      // Fallback for characters without hurt animation
+                      this.time.delayedCall(200, () => { this.isHurt = false; });
+                    }
+                    this.isAttacking = false; // Cancel attack if hit
 
-                  // Optional knockback for player
-                  const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
-                  this.player.setVelocity(Math.cos(angle) * 80, Math.sin(angle) * 80);
-                  setTimeout(() => { if (this.player && this.player.hp > 0 && !this.isGameOver) this.player.setVelocity(0); }, 150);
+                    // Knockback for player
+                    const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+                    this.player.setVelocity(Math.cos(angle) * 80, Math.sin(angle) * 80);
+                    setTimeout(() => { if (this.player && this.player.hp > 0 && !this.isGameOver) this.player.setVelocity(0); }, 150);
+                  }
                 }
               }
             }
-          }
-        });
+          });
+        }
       } else if (dist < 350) {
         // Follow player
         this.physics.moveToObject(enemy, this.player, CHARACTER_CONFIG[enemy.type].speed);
@@ -511,9 +602,14 @@ export default class GameScene extends Phaser.Scene {
         }
       });
 
-      // Draw player
-      this.minimapGraphics.fillStyle(0x4ade80, 1);
-      this.minimapGraphics.fillCircle(mapX + this.player.x * scaleX, mapY + this.player.y * scaleY, 3);
+      const minimapPlayerX = mapX + (this.player.x * scaleX);
+      const minimapPlayerY = mapY + (this.player.y * scaleY);
+      this.minimapGraphics.fillStyle(0x00ff00, 1);
+      this.minimapGraphics.fillCircle(minimapPlayerX, minimapPlayerY, 3);
+    }
+
+    if (this.rangeIndicator && this.player) {
+      this.rangeIndicator.setPosition(this.player.x, this.player.y);
     }
   }
 
