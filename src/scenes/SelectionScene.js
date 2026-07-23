@@ -12,13 +12,21 @@ export default class SelectionScene extends Phaser.Scene {
     // Load all character spritesheets here so they are ready globally
     Object.keys(CHARACTER_CONFIG).forEach(key => {
       const config = CHARACTER_CONFIG[key];
-      Object.keys(config.animations).forEach(anim => {
+      if (config.singleSpritesheet) {
         this.load.spritesheet(
-          `${key}_${anim}`, 
-          `/characters/${config.folder}/${anim}.png`, 
+          `${key}_all`, 
+          `/characters/${config.folder}/${config.singleSpritesheet}`, 
           { frameWidth: config.frameWidth, frameHeight: config.frameHeight }
         );
-      });
+      } else {
+        Object.keys(config.animations).forEach(anim => {
+          this.load.spritesheet(
+            `${key}_${anim}`, 
+            `/characters/${config.folder}/${anim}.png`, 
+            { frameWidth: config.frameWidth, frameHeight: config.frameHeight }
+          );
+        });
+      }
     });
   }
 
@@ -36,20 +44,29 @@ export default class SelectionScene extends Phaser.Scene {
         const animConfig = config.animations[anim];
         
         if (!this.anims.exists(`${key}_${anim}`)) {
-          this.anims.create({
-            key: `${key}_${anim}`,
-            frames: this.anims.generateFrameNumbers(`${key}_${anim}`, { start: 0, end: animConfig.frames - 1 }),
-            frameRate: animConfig.rate,
-            repeat: animConfig.repeat
-          });
+          if (config.singleSpritesheet) {
+            this.anims.create({
+              key: `${key}_${anim}`,
+              frames: this.anims.generateFrameNumbers(`${key}_all`, { start: animConfig.start, end: animConfig.end }),
+              frameRate: animConfig.rate,
+              repeat: animConfig.repeat
+            });
+          } else {
+            this.anims.create({
+              key: `${key}_${anim}`,
+              frames: this.anims.generateFrameNumbers(`${key}_${anim}`, { start: 0, end: animConfig.frames - 1 }),
+              frameRate: animConfig.rate,
+              repeat: animConfig.repeat
+            });
+          }
         }
       });
     });
 
     // Preview Sprite centered in the transparent left 35% of the screen
     // 35% of width is the preview zone, so middle is width * 0.175
-    this.previewSprite = this.add.sprite(width * 0.175, height * 0.38, `${this.characters[this.currentIndex]}_idle`);
     const initialConfig = CHARACTER_CONFIG[this.characters[this.currentIndex]];
+    this.previewSprite = this.add.sprite(width * 0.175, height * 0.38, initialConfig.singleSpritesheet ? `${this.characters[this.currentIndex]}_all` : `${this.characters[this.currentIndex]}_idle`);
     this.previewSprite.setScale(3.5 * (initialConfig.scale || 1));
     this.previewSprite.play(`${this.characters[this.currentIndex]}_idle`);
 
@@ -64,7 +81,7 @@ export default class SelectionScene extends Phaser.Scene {
         this.currentIndex = index;
         const config = CHARACTER_CONFIG[key];
         
-        this.previewSprite.setTexture(`${key}_idle`);
+        this.previewSprite.setTexture(config.singleSpritesheet ? `${key}_all` : `${key}_idle`);
         this.previewSprite.play(`${key}_idle`);
         
         // Re-scale on change

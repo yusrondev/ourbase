@@ -12,6 +12,7 @@ export default class GameScene extends Phaser.Scene {
 
   preload() {
     // Assets are already preloaded globally by SelectionScene!
+    this.load.image('arrow', '/characters/gondaf/arrow.png');
   }
 
   create() {
@@ -25,10 +26,55 @@ export default class GameScene extends Phaser.Scene {
 
     this.enemies = []; // Central array for enemies
     this.enemyGroup = this.physics.add.group(); // Physics group for collisions
+    this.projectiles = this.physics.add.group(); // Group for ranged attacks
+    
+    // Setup projectile overlap
+    this.physics.add.overlap(this.projectiles, this.enemyGroup, (projectile, enemy) => {
+      if (enemy.hp <= 0) return;
+      projectile.destroy();
+      
+      const dmg = projectile.damage || 20;
+      enemy.hp -= dmg;
+      this.showFloatingText(enemy.x, enemy.y - 40, `-${dmg}`, '#ffffff');
+      
+      if (enemy.hp <= 0) {
+        enemy.hpBar.clear();
+        enemy.setVelocity(0);
+        enemy.body.enable = false;
+        if (this.anims.exists(`${enemy.type}_death`)) {
+          enemy.play(`${enemy.type}_death`);
+        }
+        
+        // Fade out after 1 detik
+        this.time.delayedCall(1000, () => {
+          if (enemy && enemy.scene) {
+            this.tweens.add({
+              targets: enemy,
+              alpha: 0,
+              duration: 1000,
+              onComplete: () => {
+                if (enemy) enemy.destroy();
+              }
+            });
+          }
+        });
+      } else {
+        enemy.isHurt = true;
+        if (this.anims.exists(`${enemy.type}_hurt`)) {
+          enemy.play(`${enemy.type}_hurt`, true);
+        }
+        enemy.isAttacking = false; // Cancel attack if hit
+
+        const angle = Phaser.Math.Angle.Between(projectile.x, projectile.y, enemy.x, enemy.y);
+        enemy.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);
+        setTimeout(() => { if (enemy && enemy.hp > 0) enemy.setVelocity(0); }, 150);
+      }
+    });
     
     // Create Player based on selection (Spawn in the middle of the world)
     const playerConfig = CHARACTER_CONFIG[this.characterKey];
-    this.player = this.physics.add.sprite(this.WORLD_WIDTH / 2, this.WORLD_HEIGHT / 2, `${this.characterKey}_idle`);
+    const initialTexture = playerConfig.singleSpritesheet ? `${this.characterKey}_all` : `${this.characterKey}_idle`;
+    this.player = this.physics.add.sprite(this.WORLD_WIDTH / 2, this.WORLD_HEIGHT / 2, initialTexture);
     const playerScale = playerConfig.scale || 1;
     this.player.setScale(playerScale);
     const pBodyWidth = 30 / playerScale;
@@ -51,7 +97,8 @@ export default class GameScene extends Phaser.Scene {
     this.spawnEnemy = (x, y, type, hpOverride, scale = 1) => {
       const enemyConfig = CHARACTER_CONFIG[type];
       const hp = hpOverride || enemyConfig.hp;
-      const enemy = this.physics.add.sprite(x, y, `${type}_idle`);
+      const initialEnemyTexture = enemyConfig.singleSpritesheet ? `${type}_all` : `${type}_idle`;
+      const enemy = this.physics.add.sprite(x, y, initialEnemyTexture);
       
       const eScale = (enemyConfig.scale || 1) * scale;
       enemy.setScale(eScale);
@@ -131,7 +178,7 @@ export default class GameScene extends Phaser.Scene {
     this.isGuarding = false;
     
     this.player.on(`animationcomplete`, (anim) => {
-      if (anim.key === `${this.characterKey}_attack` || anim.key === `${this.characterKey}_heal`) {
+      if (anim.key === `${this.characterKey}_attack` || anim.key === `${this.characterKey}_attack2` || anim.key === `${this.characterKey}_heal`) {
         this.isAttacking = false;
       }
     });
@@ -186,7 +233,10 @@ export default class GameScene extends Phaser.Scene {
       this.player.play(`${this.characterKey}_guard`, true);
     } else if (isActionTriggered && this.player.hp > 0) {
       this.isAttacking = true;
-      const actionName = this.characterKey === 'monk' ? 'heal' : 'attack';
+      let actionName = this.characterKey === 'monk' ? 'heal' : 'attack';
+      if (this.characterKey === 'kael' || this.characterKey === 'lucifer') {
+        actionName = Math.random() < 0.5 ? 'attack' : 'attack2';
+      }
       this.player.play(`${this.characterKey}_${actionName}`, true);
       this.player.setVelocity(0);
       
@@ -220,12 +270,44 @@ export default class GameScene extends Phaser.Scene {
               });
             }
           });
+        } else if (CHARACTER_CONFIG[this.characterKey].attackType === 'ranged') {
+          // Ranged attack logic
+          let nearestEnemy = null;
+          let minHpEnemyDist = Infinity;
+          this.enemies.forEach(enemy => {
+            if (enemy.hp <= 0) return;
+            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+            // Must face the enemy
+            const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
+            if (dist < 500 && dist < minHpEnemyDist && isFacingEnemy) {
+              minHpEnemyDist = dist;
+              nearestEnemy = enemy;
+            }
+          });
+          
+          if (nearestEnemy) {
+            const arrow = this.projectiles.create(this.player.x, this.player.y, 'arrow');
+            arrow.damage = CHARACTER_CONFIG[this.characterKey].attack;
+            
+            const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, nearestEnemy.x, nearestEnemy.y);
+            arrow.rotation = angle;
+            
+            const speed = 600;
+            arrow.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+            arrow.setDepth(50);
+            
+            this.time.delayedCall(2000, () => {
+              if (arrow && arrow.scene) arrow.destroy();
+            });
+          }
         } else {
           // Standard Attack logic
           this.enemies.forEach(enemy => {
             if (enemy.hp <= 0) return;
             const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-            if (dist < 45) {
+            // Must face the enemy
+            const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
+            if (dist < 45 && isFacingEnemy) {
               const dmg = CHARACTER_CONFIG[this.characterKey].attack;
               enemy.hp -= dmg;
               this.showFloatingText(enemy.x, enemy.y - 40, `-${dmg}`, '#ffffff');
@@ -344,7 +426,8 @@ export default class GameScene extends Phaser.Scene {
           if (this.player.hp > 0 && enemy.hp > 0 && !enemy.isHurt) {
             const currentDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
             if (currentDist < attackRange + 15) {
-              if (this.isGuarding) {
+              const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
+              if (this.isGuarding && isFacingEnemy) {
                 // Ignore damage, repel enemy
                 const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
                 enemy.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);

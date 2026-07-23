@@ -155,5 +155,66 @@ export const CHARACTER_CONFIG = {
       attack: { frames: 4, rate: 8, repeat: 0 },
       guard: { frames: 6, rate: 10, repeat: 0 }
     }
+  },
+  gondaf: {
+    name: 'Gondaf',
+    role: 'Marksman',
+    description: 'Pemanah jitu yang mampu menyerang dari jarak jauh dengan presisi tinggi.',
+    folder: 'gondaf',
+    frameWidth: 64,
+    frameHeight: 64,
+    hp: 80,
+    attack: 40,
+    speed: 180,
+    scale: 1,
+    singleSpritesheet: 'all.png',
+    attackType: 'ranged',
+    animations: {
+      idle: { start: 0, end: 4, rate: 8, repeat: -1 },
+      walk: { start: 22, end: 29, rate: 10, repeat: -1 },
+      attack: { start: 11, end: 21, rate: 12, repeat: 0 },
+      hurt: { start: 33, end: 37, rate: 8, repeat: 0 },
+      death: { start: 44, end: 49, rate: 8, repeat: 0 }
+    }
+  },
+  kael: {
+    name: 'Kael',
+    role: 'Fighter',
+    description: 'Petarung mematikan dengan kombo serangan ganda (Attack 1 & Attack 2).',
+    folder: 'kael',
+    frameWidth: 180,
+    frameHeight: 180,
+    hp: 110,
+    attack: 35,
+    speed: 170,
+    scale: 0.8,
+    animations: {
+      idle: { frames: 11, rate: 10, repeat: -1 },
+      walk: { frames: 8, rate: 12, repeat: -1 },
+      attack: { frames: 7, rate: 12, repeat: 0 },
+      attack2: { frames: 7, rate: 12, repeat: 0 },
+      hurt: { frames: 4, rate: 8, repeat: 0 },
+      death: { frames: 11, rate: 8, repeat: 0 }
+    }
+  },
+  lucifer: {
+    name: 'Lucifer',
+    role: 'Fighter',
+    description: 'Penguasa kegelapan dengan kekuatan penghancur ganda (Attack 1 & Attack 2).',
+    folder: 'lucifer',
+    frameWidth: 200,
+    frameHeight: 200,
+    hp: 130,
+    attack: 40,
+    speed: 160,
+    scale: 0.8,
+    animations: {
+      idle: { frames: 4, rate: 8, repeat: -1 },
+      walk: { frames: 8, rate: 12, repeat: -1 },
+      attack: { frames: 4, rate: 12, repeat: 0 },
+      attack2: { frames: 4, rate: 12, repeat: 0 },
+      hurt: { frames: 3, rate: 8, repeat: 0 },
+      death: { frames: 7, rate: 8, repeat: 0 }
+    }
   }
 };
