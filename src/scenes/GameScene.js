@@ -656,6 +656,9 @@ export default class GameScene extends Phaser.Scene {
       const localPlayerState = multiplayer.room.state.players.get(multiplayer.room.sessionId);
       if (localPlayerState) {
         localPlayerState.onChange(() => {
+          if (localPlayerState.maxHp !== undefined) {
+            this.playerMaxHp = localPlayerState.maxHp;
+          }
           if (localPlayerState.hp !== undefined) {
             this.player.hp = localPlayerState.hp;
             if (this.player.hp <= 0 && !this.isDead) {
