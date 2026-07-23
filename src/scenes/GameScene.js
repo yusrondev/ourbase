@@ -73,6 +73,10 @@ export default class GameScene extends Phaser.Scene {
       enemy.hp -= dmg;
       if (enemy.hp <= 0) {
         enemy.hpBar.clear();
+        if (enemy.nameTag) {
+          enemy.nameTag.destroy();
+          enemy.nameTag = null;
+        }
         enemy.setVelocity(0);
         enemy.body.enable = false;
         if (this.anims.exists(`${enemy.type}_death`)) {
@@ -230,6 +234,13 @@ export default class GameScene extends Phaser.Scene {
       enemy.type = type;
       enemy.id = id || `enemy_${++enemyIdCounter}_${Date.now()}`;
       enemy.hpBar = this.add.graphics();
+      enemy.nameTag = this.add.text(0, 0, CHARACTER_CONFIG[type].name, {
+        fontSize: '12px',
+        fill: '#ffcccc',
+        fontFamily: 'Outfit, sans-serif',
+        stroke: '#000000',
+        strokeThickness: 3
+      }).setOrigin(0.5).setDepth(200);
       enemy.isAttacking = false;
       enemy.isHurt = false;
       
@@ -635,6 +646,7 @@ export default class GameScene extends Phaser.Scene {
       multiplayer.room.onMessage("projectile_spawned", (data) => {
         const projectile = this.enemyProjectiles.create(data.x, data.y, 'lunaria_moving');
         projectile.play('lunaria_moving');
+        projectile.setCircle(15, projectile.width / 2 - 15, projectile.height / 2 - 15);
         projectile.rotation = data.angle;
         projectile.damage = data.damage;
         projectile.setVelocity(Math.cos(data.angle) * data.speed, Math.sin(data.angle) * data.speed);
@@ -658,6 +670,7 @@ export default class GameScene extends Phaser.Scene {
       // 9. Player projectile spawn listener (for remote client visual sync)
       multiplayer.room.onMessage("player_projectile_spawned", (data) => {
         const arrow = this.projectiles.create(data.x, data.y, 'arrow');
+        arrow.setCircle(10, arrow.width / 2 - 10, arrow.height / 2 - 10);
         arrow.rotation = data.angle;
         arrow.damage = data.damage;
         arrow.setVelocity(Math.cos(data.angle) * data.speed, Math.sin(data.angle) * data.speed);
@@ -696,10 +709,8 @@ export default class GameScene extends Phaser.Scene {
 
     this.isGuarding = false;
 
-    // Check virtual button state change for 'JustDown' behavior
-    const isVirtualActionDown = this.isBtnADown && !this.wasBtnADown;
-    this.wasBtnADown = this.isBtnADown;
-    let isActionTriggered = Phaser.Input.Keyboard.JustDown(this.spaceBar) || isVirtualActionDown;
+    let isActionTriggered = Phaser.Input.Keyboard.JustDown(this.spaceBar) || this.virtualActionTriggered;
+    if (this.virtualActionTriggered) this.virtualActionTriggered = false;
     
     // Prevent ranged attacks if no target is in range and facing
     if (isActionTriggered && CHARACTER_CONFIG[this.characterKey].attackType === 'ranged') {
@@ -801,6 +812,7 @@ export default class GameScene extends Phaser.Scene {
           
           if (nearestEnemy) {
             const arrow = this.projectiles.create(this.player.x, this.player.y, 'arrow');
+            arrow.setCircle(10, arrow.width / 2 - 10, arrow.height / 2 - 10);
             arrow.damage = CHARACTER_CONFIG[this.characterKey].attack;
             
             const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, nearestEnemy.x, nearestEnemy.y);
@@ -851,11 +863,11 @@ export default class GameScene extends Phaser.Scene {
       let velocityY = 0;
       const speed = CHARACTER_CONFIG[this.characterKey].speed;
 
-      // Virtual Joystick Logic
-      if (this.joyStick && this.joyStick.force > 0) {
-        velocityX = Math.cos(this.joyStick.rotation) * speed;
-        velocityY = Math.sin(this.joyStick.rotation) * speed;
-        this.player.flipX = velocityX < 0;
+      // HTML Virtual Joystick Logic
+      if (this.joystickData && this.joystickData.active) {
+        velocityX = this.joystickData.x * speed;
+        velocityY = this.joystickData.y * speed;
+        if (Math.abs(velocityX) > 0) this.player.flipX = velocityX < 0;
       } else {
         // Keyboard Logic Fallback
         if (this.cursors.left.isDown || this.wasd.left.isDown) {
@@ -894,6 +906,10 @@ export default class GameScene extends Phaser.Scene {
 
       // Draw HP Bar
       this.drawHealthBar(enemy.hpBar, enemy.x - 15, enemy.y - 25, 30, 4, enemy.hp, enemy.maxHp, 0xf87171);
+      
+      if (enemy.nameTag) {
+        enemy.nameTag.setPosition(enemy.x, enemy.y - 35);
+      }
 
       if (multiplayer.room && !multiplayer.isHost) {
         // Joiners - Smooth position interpolation (lerp)
@@ -966,6 +982,7 @@ export default class GameScene extends Phaser.Scene {
             if (targetPlayer && targetPlayer.active && enemy.hp > 0 && !enemy.isHurt) {
               const projectile = this.enemyProjectiles.create(enemy.x, enemy.y, 'lunaria_moving');
               projectile.play('lunaria_moving');
+              projectile.setCircle(15, projectile.width / 2 - 15, projectile.height / 2 - 15);
               projectile.damage = eConfig.attack;
               const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, targetPlayer.x, targetPlayer.y);
               projectile.rotation = angle;
@@ -1172,97 +1189,86 @@ export default class GameScene extends Phaser.Scene {
   }
 
   createVirtualControls() {
-    const { width, height } = this.scale;
-
-    this.joyStick = this.plugins.get('rexVirtualJoystick').add(this, {
-      x: 120,
-      y: height - 120,
-      radius: 60,
-      base: this.add.circle(0, 0, 70).setStrokeStyle(4, 0xffffff, 0.5).setFillStyle(0x000000, 0.2),
-      thumb: this.add.circle(0, 0, 35).setStrokeStyle(3, 0xffffff, 0.8).setFillStyle(0xffffff, 0.4),
-      forceMin: 16
-    });
-
-    // Fix joystick position to camera (UI overlay)
-    this.joyStick.base.setScrollFactor(0).setDepth(100);
-    this.joyStick.thumb.setScrollFactor(0).setDepth(100);
-
-    // Action A Button (Attack/Heal)
-    this.btnA = this.add.circle(width - 120, height - 100, 45).setStrokeStyle(4, 0xffffff, 0.5).setFillStyle(0x000000, 0.2)
-      .setInteractive()
-      .setScrollFactor(0)
-      .setDepth(100);
+    // Show HTML controls only on mobile devices
+    const isTouch = this.sys.game.device.os.android || this.sys.game.device.os.iOS || this.sys.game.device.input.touch;
+    const controls = document.getElementById('virtual-controls');
     
-    this.txtA = this.add.text(width - 120, height - 100, 'A', { fontSize: '36px', fill: '#fff', fontStyle: 'bold' })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(101);
-
-    this.btnA.on('pointerdown', () => { 
-      this.isBtnADown = true; 
-      this.btnA.setFillStyle(0xffffff, 0.4);
-    });
-    this.btnA.on('pointerup', () => { 
-      this.isBtnADown = false; 
-      this.btnA.setFillStyle(0x000000, 0.2);
-    });
-    this.btnA.on('pointerout', () => { 
-      this.isBtnADown = false; 
-      this.btnA.setFillStyle(0x000000, 0.2);
-    });
-
-    // Action B Button (Guard) - only shown for tank
-    this.btnB = this.add.circle(width - 220, height - 60, 35).setStrokeStyle(4, 0xffffff, 0.5).setFillStyle(0x000000, 0.2)
-      .setInteractive()
-      .setScrollFactor(0)
-      .setDepth(100);
-
-    this.txtB = this.add.text(width - 220, height - 60, 'B', { fontSize: '28px', fill: '#fff', fontStyle: 'bold' })
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(101);
-
-    this.btnB.on('pointerdown', () => { 
-      this.isBtnBDown = true; 
-      this.btnB.setFillStyle(0xffffff, 0.4);
-    });
-    this.btnB.on('pointerup', () => { 
-      this.isBtnBDown = false; 
-      this.btnB.setFillStyle(0x000000, 0.2);
-    });
-    this.btnB.on('pointerout', () => { 
-      this.isBtnBDown = false; 
-      this.btnB.setFillStyle(0x000000, 0.2);
-    });
-
-    if (this.characterKey !== 'tank') {
-      this.btnB.setVisible(false);
-      this.txtB.setVisible(false);
+    if (controls && isTouch) {
+      controls.style.display = 'flex';
+      this.setupHTMLControls();
     }
 
     // Minimap Graphics
     this.minimapGraphics = this.add.graphics();
     this.minimapGraphics.setScrollFactor(0);
     this.minimapGraphics.setDepth(99);
-
-    // Handle Resize
-    this.scale.on('resize', this.resizeControls, this);
-    
-    // Force initial sizing calculations
-    this.resizeControls(this.scale);
   }
 
-  resizeControls(gameSize) {
-    const width = gameSize.width;
-    const height = gameSize.height;
-
-    this.joyStick.x = 120;
-    this.joyStick.y = height - 120;
-
-    this.btnA.setPosition(width - 120, height - 100);
-    this.txtA.setPosition(width - 120, height - 100);
+  setupHTMLControls() {
+    this.joystickData = { active: false, x: 0, y: 0 };
     
-    this.btnB.setPosition(width - 220, height - 60);
-    this.txtB.setPosition(width - 220, height - 60);
+    const base = document.getElementById('joystick-base');
+    const stick = document.getElementById('joystick-stick');
+    const zone = document.getElementById('joystick-zone');
+    
+    let baseRect = base.getBoundingClientRect();
+    window.addEventListener('resize', () => { baseRect = base.getBoundingClientRect(); });
+
+    const handleTouch = (e) => {
+      e.preventDefault();
+      const touch = e.touches[0] || e.changedTouches[0];
+      if (!touch) return;
+      
+      const centerX = baseRect.left + baseRect.width / 2;
+      const centerY = baseRect.top + baseRect.height / 2;
+      
+      let dx = touch.clientX - centerX;
+      let dy = touch.clientY - centerY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const maxRadius = baseRect.width / 2;
+      
+      if (distance > maxRadius) {
+        const ratio = maxRadius / distance;
+        dx *= ratio;
+        dy *= ratio;
+      }
+      
+      stick.style.transform = `translate(${dx}px, ${dy}px)`;
+      stick.style.transition = 'none';
+      
+      this.joystickData.x = dx / maxRadius;
+      this.joystickData.y = dy / maxRadius;
+      this.joystickData.active = true;
+    };
+    
+    zone.addEventListener('touchstart', (e) => { baseRect = base.getBoundingClientRect(); handleTouch(e); }, { passive: false });
+    zone.addEventListener('touchmove', handleTouch, { passive: false });
+    
+    const endTouch = () => {
+      stick.style.transform = `translate(0px, 0px)`;
+      stick.style.transition = 'transform 0.1s ease-out';
+      this.joystickData.active = false;
+      this.joystickData.x = 0;
+      this.joystickData.y = 0;
+    };
+    
+    zone.addEventListener('touchend', endTouch);
+    zone.addEventListener('touchcancel', endTouch);
+    
+    // Action Buttons
+    const btnA = document.getElementById('btn-attack');
+    const btnB = document.getElementById('btn-skill');
+    
+    if (this.characterKey === 'tank') {
+      btnB.style.display = 'block';
+    } else {
+      btnB.style.display = 'none';
+    }
+    
+    btnA.addEventListener('touchstart', (e) => { e.preventDefault(); this.virtualActionTriggered = true; this.isBtnADown = true; }, { passive: false });
+    btnA.addEventListener('touchend', (e) => { e.preventDefault(); this.isBtnADown = false; });
+    
+    btnB.addEventListener('touchstart', (e) => { e.preventDefault(); this.isBtnBDown = true; }, { passive: false });
+    btnB.addEventListener('touchend', (e) => { e.preventDefault(); this.isBtnBDown = false; });
   }
 }

@@ -27,6 +27,11 @@
     </div>
     
     <div id="selection-screen" style="display: none;">
+      <!-- Top Right Room Code -->
+      <div class="top-right-room-code">
+        <span id="lobby-room-id" style="font-weight: bold; color: #4ade80;">----</span>
+      </div>
+
       <!-- Sisi Kiri dibuat transparan agar Phaser Preview terlihat -->
       <div class="selection-preview-area">
         <div class="hero-stats">
@@ -73,13 +78,6 @@
             </div>
             
             <div class="lobby-info-box">
-              <div class="lobby-room-code">
-                <span class="lobby-label">ROOM CODE</span>
-                <div class="room-code-row">
-                  <span id="lobby-room-id">----</span>
-                  <button id="btn-copy-code" class="copy-btn">📋 Copy</button>
-                </div>
-              </div>
               <div class="lobby-players">
                 <span class="lobby-label">PLAYERS IN LOBBY</span>
                 <div id="lobby-player-list" class="lobby-player-list">
@@ -106,6 +104,19 @@
       <div class="respawn-box">
         <h3>YOU DIED</h3>
         <p>Respawning in <span id="respawn-timer">5</span>s...</p>
+      </div>
+    </div>
+
+    <!-- Virtual Controls Overlay -->
+    <div id="virtual-controls" style="display: none;">
+      <div id="joystick-zone">
+        <div id="joystick-base">
+          <div id="joystick-stick"></div>
+        </div>
+      </div>
+      <div id="action-buttons">
+        <button id="btn-attack" class="action-btn-v">A</button>
+        <button id="btn-skill" class="action-btn-v">B</button>
       </div>
     </div>
 

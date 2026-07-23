@@ -832,3 +832,115 @@ body {
   font-weight: bold;
   color: #ef4444;
 }
+
+/* Virtual Controls Overlay */
+#virtual-controls {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 2000;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 40px;
+  box-sizing: border-box;
+}
+
+#joystick-zone {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  pointer-events: auto;
+}
+
+#joystick-base {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 120px;
+  height: 120px;
+  background: rgba(15, 23, 42, 0.4);
+  border: 2px solid rgba(148, 163, 184, 0.3);
+  border-radius: 50%;
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#joystick-stick {
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  position: absolute;
+  transform: translate(0, 0);
+  transition: transform 0.1s ease-out;
+}
+
+#action-buttons {
+  display: flex;
+  gap: 20px;
+  pointer-events: auto;
+}
+
+.action-btn-v {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.4);
+  border: 2px solid rgba(148, 163, 184, 0.4);
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s, transform 0.1s;
+}
+
+.action-btn-v:active {
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(0.95);
+}
+
+/* Top Right Room Code */
+.top-right-room-code {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  color: #cbd5e1;
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  z-index: 150;
+}
+
+.copy-btn-small {
+  background: #3b82f6;
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.copy-btn-small:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.copy-btn-small:active {
+  transform: translateY(0);
+}
