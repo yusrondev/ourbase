@@ -304,16 +304,18 @@ export default class GameScene extends Phaser.Scene {
 
     const isGuardTriggered = this.shiftKey.isDown || this.isBtnBDown;
 
-    // Player Attack Logic
-    if (this.isHurt) {
+    // Player Logic
+    if (this.player.hp <= 0) {
+      this.player.setVelocity(0);
+    } else if (this.isHurt) {
       // Don't allow movement or attacking while hurt
     } else if (this.isAttacking) {
       this.player.setVelocity(0);
-    } else if (this.characterKey === 'tank' && isGuardTriggered && this.player.hp > 0) {
+    } else if (this.characterKey === 'tank' && isGuardTriggered) {
       this.isGuarding = true;
       this.player.setVelocity(0);
       this.player.play(`${this.characterKey}_guard`, true);
-    } else if (isActionTriggered && this.player.hp > 0) {
+    } else if (isActionTriggered) {
       this.isAttacking = true;
       let actionName = this.characterKey === 'monk' ? 'heal' : 'attack';
       if (this.characterKey === 'kael' || this.characterKey === 'lucifer' || this.characterKey === 'shifu' || this.characterKey === 'mystic') {
