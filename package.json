@@ -12,6 +12,10 @@
     "vite": "^4.5.3"
   },
   "dependencies": {
+    "@colyseus/schema": "^2.0.35",
+    "colyseus": "^0.15.57",
+    "colyseus.js": "^0.15.28",
+    "express": "^5.2.1",
     "phaser": "^3.60.0",
     "phaser3-rex-plugins": "^1.80.20"
   }

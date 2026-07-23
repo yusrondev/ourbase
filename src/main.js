@@ -3,6 +3,7 @@ import SelectionScene from './scenes/SelectionScene.js';
 import GameScene from './scenes/GameScene.js';
 import VirtualJoystickPlugin from 'phaser3-rex-plugins/plugins/virtualjoystick-plugin.js';
 import { CHARACTER_CONFIG } from './config/characters.js';
+import { multiplayer } from './MultiplayerManager.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -132,50 +133,163 @@ document.querySelectorAll('.role-tab').forEach(tab => {
   });
 });
 
-// Handle Start Game
+// Handle Start Game from Selection Screen
 document.getElementById('select-hero-btn').addEventListener('click', () => {
-  document.getElementById('selection-screen').style.display = 'none';
-  if (typeof window.startGame === 'function') {
-    window.startGame();
+  if (multiplayer.isHost) {
+    multiplayer.startGame();
+  } else {
+    document.getElementById('select-hero-btn').innerText = "WAITING FOR HOST...";
   }
 });
 
-// Handle Native HTML Start Button
-document.getElementById('start-btn').addEventListener('click', () => {
+// Update Player List in Lobby Info Box
+function renderPlayerList() {
+  if (!multiplayer.room) return;
+  const listContainer = document.getElementById('lobby-player-list');
+  if (!listContainer) return;
+  listContainer.innerHTML = '';
+  
+  multiplayer.room.state.players.forEach(p => {
+    if (!p) return;
+    const pName = p.name || 'Player';
+    const isMe = p.id === multiplayer.room.sessionId;
+    const isHost = p.isHost;
+    
+    const item = document.createElement('div');
+    item.className = 'lobby-player-item';
+    
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'lobby-player-name';
+    nameSpan.innerText = `👤 ${pName}${isMe ? ' (You)' : ''}`;
+    
+    item.appendChild(nameSpan);
+    
+    if (isHost) {
+      const hostBadge = document.createElement('span');
+      hostBadge.className = 'lobby-host-badge';
+      hostBadge.innerText = 'HOST';
+      item.appendChild(hostBadge);
+    }
+    
+    listContainer.appendChild(item);
+  });
+}
+
+function showSelectionScreen() {
   const docElm = document.documentElement;
+  if (docElm.requestFullscreen) docElm.requestFullscreen();
+  else if (docElm.webkitRequestFullscreen) docElm.webkitRequestFullscreen();
   
-  // Request Fullscreen
-  if (docElm.requestFullscreen) {
-    docElm.requestFullscreen();
-  } else if (docElm.webkitRequestFullscreen) {
-    docElm.webkitRequestFullscreen();
-  }
-  
-  // Lock landscape
   try {
     if (screen.orientation && screen.orientation.lock) {
       screen.orientation.lock('landscape').catch(() => {});
     }
   } catch(e) {}
   
-  // Hide Overlay
   document.getElementById('start-screen').style.display = 'none';
-  
-  // Show Selection HTML Overlay
   document.getElementById('selection-screen').style.display = 'flex';
+  
+  const lobbyRoomId = document.getElementById('lobby-room-id');
+  if (lobbyRoomId) {
+    lobbyRoomId.innerText = multiplayer.roomId || '----';
+  }
 
-  // Initialize UI with default character details
   updateHeroDetails(activeHeroKey);
   renderHeroGrid('all');
 
-  // Trigger initial character select in Phaser
   setTimeout(() => {
     if (typeof window.selectCharacter === 'function') {
       window.selectCharacter(activeHeroKey);
     }
+    multiplayer.setCharacter(activeHeroKey); // Initial sync
   }, 200);
 
-  // Force Phaser to recalculate layout after rotation delay
   setTimeout(() => { game.scale.refresh(); }, 200);
   setTimeout(() => { game.scale.refresh(); }, 500);
+
+  // Sync character selection
+  const originalSelectCharacter = window.selectCharacter;
+  window.selectCharacter = (key) => {
+    if (originalSelectCharacter) originalSelectCharacter(key);
+    multiplayer.setCharacter(key);
+  };
+}
+
+// Multiplayer Join/Create Listeners
+const btnCreate = document.getElementById('mp-btn-create');
+const btnJoin = document.getElementById('mp-btn-join');
+const inputName = document.getElementById('mp-name');
+const inputRoom = document.getElementById('mp-room-id');
+const errorDiv = document.getElementById('mp-error');
+
+function showError(msg) {
+  errorDiv.innerText = msg;
+  errorDiv.style.display = 'block';
+}
+
+function setupRoomListeners() {
+  let hasTransitioned = false;
+  multiplayer.room.state.players.onAdd(() => renderPlayerList());
+  multiplayer.room.state.players.onRemove(() => renderPlayerList());
+  multiplayer.room.state.onChange(() => {
+    if (hasTransitioned) return;
+    renderPlayerList();
+    if (multiplayer.room.state.status === 'PLAYING') {
+      hasTransitioned = true;
+      document.getElementById('selection-screen').style.display = 'none';
+      if (typeof window.startGame === 'function') {
+        window.startGame();
+      }
+    }
+  });
+}
+
+btnCreate.addEventListener('click', async () => {
+  const name = inputName.value.trim() || 'Player';
+  btnCreate.disabled = true;
+  btnCreate.innerText = 'Creating...';
+  try {
+    await multiplayer.createRoom(name);
+    setupRoomListeners();
+    showSelectionScreen();
+  } catch (err) {
+    btnCreate.disabled = false;
+    btnCreate.innerText = '🎮 CREATE NEW ROOM';
+    showError('Failed to create room: ' + err.message);
+  }
+});
+
+btnJoin.addEventListener('click', async () => {
+  const name = inputName.value.trim() || 'Player';
+  const roomId = inputRoom.value.trim();
+  if (!roomId) {
+    showError('Please enter a Room Code!');
+    return;
+  }
+  btnJoin.disabled = true;
+  btnJoin.innerText = 'Joining...';
+  try {
+    await multiplayer.joinRoom(roomId, name);
+    setupRoomListeners();
+    showSelectionScreen();
+    // Non-host hides start button or shows wait text
+    document.getElementById('select-hero-btn').innerText = "WAITING FOR HOST...";
+  } catch (err) {
+    btnJoin.disabled = false;
+    btnJoin.innerText = '🔑 JOIN ROOM';
+    showError('Room not found or full!');
+  }
+});
+
+// Copy Room Code event listener
+document.getElementById('btn-copy-code').addEventListener('click', () => {
+  if (multiplayer.roomId) {
+    navigator.clipboard.writeText(multiplayer.roomId).then(() => {
+      const btn = document.getElementById('btn-copy-code');
+      btn.innerText = '✅ Copied';
+      setTimeout(() => { btn.innerText = '📋 Copy'; }, 2000);
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+    });
+  }
 });

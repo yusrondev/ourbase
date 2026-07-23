@@ -203,7 +203,7 @@ export const CHARACTER_CONFIG = {
     speed: 80,
     scale: 1,
     attackType: 'ranged',
-    attackRange: 150,
+    attackRange: 450,
     animations: {
       idle: { frames: 10, rate: 8, repeat: -1 },
       walk: { frames: 8, rate: 10, repeat: -1 },

@@ -7,9 +7,23 @@
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
-    <div id="start-screen">
+    <div id="start-screen" class="lobby-screen">
       <h1>OURBASE</h1>
-      <button id="start-btn">MULAI</button>
+      <div class="lobby-box">
+        <label>YOUR NAME</label>
+        <input type="text" id="mp-name" value="Player" />
+        
+        <button id="mp-btn-create" class="action-btn create-btn">🎮 CREATE NEW ROOM</button>
+        
+        <div class="divider">
+          <span>OR JOIN EXISTING</span>
+        </div>
+        
+        <input type="number" id="mp-room-id" placeholder="Enter Room Code" />
+        <button id="mp-btn-join" class="action-btn join-btn">🔑 JOIN ROOM</button>
+        
+        <div id="mp-error" class="error-msg" style="display: none;"></div>
+      </div>
     </div>
     
     <div id="selection-screen" style="display: none;">
@@ -49,10 +63,30 @@
         </div>
         
         <div class="selection-body">
-          <div class="hero-details">
-            <h3 id="detail-name">Darius</h3>
-            <span id="detail-role" class="hero-role-badge">Fighter</span>
-            <p id="detail-desc" class="hero-desc">Pejuang garis depan bersenjata pedang besar.</p>
+          <div class="left-panel-column">
+            <div class="hero-details">
+              <div class="hero-details-header">
+                <h3 id="detail-name">Darius</h3>
+                <span id="detail-role" class="hero-role-badge">Fighter</span>
+              </div>
+              <p id="detail-desc" class="hero-desc">Pejuang garis depan bersenjata pedang besar.</p>
+            </div>
+            
+            <div class="lobby-info-box">
+              <div class="lobby-room-code">
+                <span class="lobby-label">ROOM CODE</span>
+                <div class="room-code-row">
+                  <span id="lobby-room-id">----</span>
+                  <button id="btn-copy-code" class="copy-btn">📋 Copy</button>
+                </div>
+              </div>
+              <div class="lobby-players">
+                <span class="lobby-label">PLAYERS IN LOBBY</span>
+                <div id="lobby-player-list" class="lobby-player-list">
+                  <!-- Will be populated dynamically -->
+                </div>
+              </div>
+            </div>
           </div>
           
           <div class="hero-grid-container">
@@ -65,6 +99,13 @@
         <div class="selection-footer">
           <button id="select-hero-btn">MULAI GAME</button>
         </div>
+      </div>
+    </div>
+
+    <div id="respawn-overlay" style="display: none;" class="respawn-overlay">
+      <div class="respawn-box">
+        <h3>YOU DIED</h3>
+        <p>Respawning in <span id="respawn-timer">5</span>s...</p>
       </div>
     </div>
 

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CHARACTER_CONFIG } from '../config/characters.js';
+import { multiplayer } from '../MultiplayerManager.js';
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -35,6 +36,22 @@ export default class GameScene extends Phaser.Scene {
     this.projectiles = this.physics.add.group();
     this.enemyProjectiles = this.physics.add.group();
 
+    // Handle player projectiles hitting enemies
+    this.physics.add.overlap(this.projectiles, this.enemyGroup, (arrow, enemy) => {
+      if (enemy.hp <= 0) return;
+      
+      const dmg = arrow.damage || 10;
+      if (multiplayer.room) {
+        multiplayer.room.send("damage_enemy", { id: enemy.id, damage: dmg, sourceX: this.player.x, sourceY: this.player.y });
+      } else {
+        // Single player mode
+        this.showFloatingText(enemy.x, enemy.y - 40, `-${dmg}`, '#ffffff');
+        this.damageEnemyLocal(enemy, dmg, this.player.x, this.player.y);
+      }
+      
+      arrow.destroy();
+    });
+
     // Create lunaria projectile animations
     if (!this.anims.exists('lunaria_explode')) {
       this.anims.create({
@@ -51,15 +68,9 @@ export default class GameScene extends Phaser.Scene {
       });
     } // Group for ranged attacks
     
-    // Setup projectile overlap
-    this.physics.add.overlap(this.projectiles, this.enemyGroup, (projectile, enemy) => {
-      if (enemy.hp <= 0) return;
-      projectile.destroy();
-      
-      const dmg = projectile.damage || 20;
+    // Helper to damage enemies locally (Host or Singleplayer)
+    this.damageEnemyLocal = (enemy, dmg, sourceX, sourceY) => {
       enemy.hp -= dmg;
-      this.showFloatingText(enemy.x, enemy.y - 40, `-${dmg}`, '#ffffff');
-      
       if (enemy.hp <= 0) {
         enemy.hpBar.clear();
         enemy.setVelocity(0);
@@ -88,10 +99,47 @@ export default class GameScene extends Phaser.Scene {
         }
         enemy.isAttacking = false; // Cancel attack if hit
 
-        const angle = Phaser.Math.Angle.Between(projectile.x, projectile.y, enemy.x, enemy.y);
+        const angle = Phaser.Math.Angle.Between(sourceX, sourceY, enemy.x, enemy.y);
         enemy.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);
         setTimeout(() => { if (enemy && enemy.hp > 0) enemy.setVelocity(0); }, 150);
       }
+    };
+
+    // Handle enemy projectiles hitting player
+    this.physics.add.overlap(this.enemyProjectiles, this.player, (player, projectile) => {
+      if (this.isDead || player.hp <= 0) return;
+      
+      let dmg = projectile.damage;
+      if (this.isGuarding) {
+        dmg = Math.max(1, Math.floor(dmg * 0.3));
+      }
+      
+      if (multiplayer.room) {
+        if (multiplayer.isHost) {
+          multiplayer.room.send("damage_player", { targetId: multiplayer.room.sessionId, damage: dmg, sourceX: projectile.x, sourceY: projectile.y });
+        }
+      } else {
+        // Single player mode
+        if (this.isGuarding) {
+          player.hp -= dmg;
+          this.showFloatingText(player.x, player.y - 40, `Blocked`, '#aaaaaa');
+        } else {
+          player.hp -= dmg;
+          this.showFloatingText(player.x, player.y - 40, `-${dmg}`, '#ff0000');
+          if (player.hp > 0) {
+            player.isHurt = true;
+            player.play(`${this.characterKey}_hurt`, true);
+            player.setVelocity(0, 0);
+            player.on('animationcomplete', () => { player.isHurt = false; });
+          }
+        }
+        this.checkPlayerDeath();
+      }
+      
+      const explode = this.add.sprite(projectile.x, projectile.y, 'lunaria_explode');
+      explode.play('lunaria_explode');
+      explode.on('animationcomplete', () => explode.destroy());
+      projectile.destroy();
     });
     
     // Create Player based on selection (Spawn in the middle of the world)
@@ -112,17 +160,24 @@ export default class GameScene extends Phaser.Scene {
     this.player.hp = playerConfig.hp;
     this.playerMaxHp = playerConfig.hp;
     
-    // Draw range indicator for ranged characters
+    // Draw range indicator for ranged characters or Monk
     if (playerConfig.attackType === 'ranged') {
       this.rangeIndicator = this.add.graphics();
       this.rangeRadius = playerConfig.attackRange || 500;
       this.rangeIndicator.lineStyle(2, 0xffffff, 0.3);
       this.rangeIndicator.strokeCircle(0, 0, this.rangeRadius);
+    } else if (this.characterKey === 'monk') {
+      this.rangeIndicator = this.add.graphics();
+      this.rangeRadius = 150; // Area of Effect heal radius
+      this.rangeIndicator.lineStyle(2, 0x4ade80, 0.3); // Green circle
+      this.rangeIndicator.strokeCircle(0, 0, this.rangeRadius);
     }
     this.playerHpBar = this.add.graphics();
+    this.playerHpBar.setDepth(200);
     
     // Handle enemy projectiles hitting player
     this.physics.add.overlap(this.enemyProjectiles, this.player, (player, projectile) => {
+      if (this.isDead || player.hp <= 0) return;
       if (this.isGuarding) {
         // Reduced damage if guarding
         player.hp -= Math.max(1, Math.floor(projectile.damage * 0.3));
@@ -140,6 +195,7 @@ export default class GameScene extends Phaser.Scene {
           });
         }
       }
+      this.checkPlayerDeath();
       
       const explode = this.add.sprite(projectile.x, projectile.y, 'lunaria_explode');
       explode.play('lunaria_explode');
@@ -151,7 +207,8 @@ export default class GameScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player, true, 0.05, 0.05);
 
     // Create Enemies helper
-    this.spawnEnemy = (x, y, type, hpOverride, scale = 1) => {
+    let enemyIdCounter = 0;
+    this.spawnEnemy = (x, y, type, hpOverride, scale = 1, id = null) => {
       const enemyConfig = CHARACTER_CONFIG[type];
       const hp = hpOverride || enemyConfig.hp;
       const initialEnemyTexture = enemyConfig.singleSpritesheet ? `${type}_all` : `${type}_idle`;
@@ -171,6 +228,7 @@ export default class GameScene extends Phaser.Scene {
       enemy.hp = hp;
       enemy.maxHp = hp;
       enemy.type = type;
+      enemy.id = id || `enemy_${++enemyIdCounter}_${Date.now()}`;
       enemy.hpBar = this.add.graphics();
       enemy.isAttacking = false;
       enemy.isHurt = false;
@@ -185,6 +243,11 @@ export default class GameScene extends Phaser.Scene {
           enemy.isAttacking = false;
         });
       }
+      enemy.on('animationstop', (anim) => {
+        if (anim && anim.key.includes('attack')) {
+          enemy.isAttacking = false;
+        }
+      });
       
       enemy.on(`animationcomplete-${type}_hurt`, () => {
         enemy.isHurt = false;
@@ -255,6 +318,356 @@ export default class GameScene extends Phaser.Scene {
 
     // Add Virtual Controls
     this.createVirtualControls();
+
+    // Setup Multiplayer
+    this.remotePlayers = new Map();
+    this.isDead = false;
+
+    this.getSafeSpawnPosition = () => {
+      let bestPos = { x: this.WORLD_WIDTH / 2, y: this.WORLD_HEIGHT / 2 };
+      let bestDist = 0;
+      
+      for (let i = 0; i < 50; i++) {
+        const testX = Phaser.Math.Between(100, this.WORLD_WIDTH - 100);
+        const testY = Phaser.Math.Between(100, this.WORLD_HEIGHT - 100);
+        
+        let minDistToEnemy = Infinity;
+        for (const enemy of this.enemies) {
+          if (enemy.hp <= 0) continue;
+          const dist = Phaser.Math.Distance.Between(testX, testY, enemy.x, enemy.y);
+          if (dist < minDistToEnemy) minDistToEnemy = dist;
+        }
+        
+        if (minDistToEnemy === Infinity || minDistToEnemy > 400) {
+          return { x: testX, y: testY };
+        }
+        
+        if (minDistToEnemy > bestDist) {
+          bestDist = minDistToEnemy;
+          bestPos = { x: testX, y: testY };
+        }
+      }
+      return bestPos;
+    };
+
+    this.resuscitatePlayer = () => {
+      this.tweens.killTweensOf(this.player); // Stop any active fade-out tweens
+      this.player.hp = this.playerMaxHp;
+      this.player.alpha = 1;
+      this.player.body.enable = true;
+      const safePos = this.getSafeSpawnPosition();
+      this.player.setPosition(safePos.x, safePos.y);
+      this.player.play(`${this.characterKey}_idle`, true); // Force stand up animation!
+      
+      const overlay = document.getElementById('respawn-overlay');
+      if (overlay) {
+        overlay.style.display = 'none';
+      }
+      
+      this.isDead = false;
+      this.isHurt = false;       // Reset locking state flags!
+      this.isAttacking = false;
+      this.isGuarding = false;
+    };
+
+    this.checkPlayerDeath = () => {
+      if (!this.isDead) {
+        this.isDead = true;
+        this.player.hp = 0;
+        this.player.setVelocity(0);
+        this.player.body.enable = false;
+        
+        if (this.anims.exists(`${this.characterKey}_death`)) {
+          this.player.play(`${this.characterKey}_death`);
+        }
+
+        // Fade out local player sprite
+        this.tweens.add({
+          targets: this.player,
+          alpha: 0,
+          duration: 1000
+        });
+
+        // Show Respawn Overlay
+        const overlay = document.getElementById('respawn-overlay');
+        const timerText = document.getElementById('respawn-timer');
+        if (overlay && timerText) {
+          overlay.style.display = 'flex';
+          let cooldown = 5;
+          timerText.innerText = cooldown;
+          
+          const interval = setInterval(() => {
+            cooldown--;
+            if (timerText) timerText.innerText = cooldown;
+            if (cooldown <= 0) {
+              clearInterval(interval);
+              // Send respawn request to server
+              if (multiplayer.room) {
+                multiplayer.room.send("respawn_player");
+              } else {
+                this.resuscitatePlayer();
+              }
+            }
+          }, 1000);
+        } else {
+          // Fallback if HTML overlay doesn't exist
+          this.time.delayedCall(5000, () => {
+            if (multiplayer.room) {
+              multiplayer.room.send("respawn_player");
+            } else {
+              this.resuscitatePlayer();
+            }
+          });
+        }
+      }
+    };
+
+    if (multiplayer.room) {
+      // 1. Listen for remote players joining & moving
+      multiplayer.room.state.players.onAdd((playerState, sessionId) => {
+        if (sessionId !== multiplayer.room.sessionId) {
+          const charKey = playerState.character || 'human';
+          const pConfig = CHARACTER_CONFIG[charKey];
+          const initialTexture = pConfig.singleSpritesheet ? `${charKey}_all` : `${charKey}_idle`;
+          
+          const rSprite = this.physics.add.sprite(playerState.x || this.WORLD_WIDTH / 2, playerState.y || this.WORLD_HEIGHT / 2, initialTexture);
+          const playerScale = pConfig.scale || 1;
+          rSprite.setScale(playerScale);
+          const pBodyWidth = 30 / playerScale;
+          const pBodyHeight = 40 / playerScale;
+          rSprite.setSize(pBodyWidth, pBodyHeight);
+          rSprite.setOffset(
+            (pConfig.frameWidth - pBodyWidth) / 2, 
+            (pConfig.frameHeight / 2) - (20 / playerScale)
+          );
+          rSprite.play(`${charKey}_idle`);
+          
+          // Name tag
+          const nameTag = this.add.text(0, 0, playerState.name || 'Player', {
+            fontSize: '14px', fill: '#ffffff', backgroundColor: '#00000088'
+          }).setOrigin(0.5).setDepth(200);
+
+          const hpBar = this.add.graphics();
+          hpBar.setDepth(200);
+
+          const rpData = { 
+            sprite: rSprite, 
+            nameTag, 
+            hpBar,
+            charKey, 
+            targetX: playerState.x || rSprite.x, 
+            targetY: playerState.y || rSprite.y,
+            hp: playerState.hp !== undefined ? playerState.hp : 100,
+            maxHp: playerState.maxHp !== undefined ? playerState.maxHp : 100
+          };
+          this.remotePlayers.set(sessionId, rpData);
+
+          // Register Host-Authoritative overlap for enemy projectiles hitting remote players
+          if (multiplayer.isHost) {
+            this.physics.add.overlap(this.enemyProjectiles, rSprite, (rpSprite, projectile) => {
+              if (rpData.hp <= 0) return;
+              
+              const dmg = projectile.damage || 10;
+              multiplayer.room.send("damage_player", { targetId: sessionId, damage: dmg, sourceX: projectile.x, sourceY: projectile.y });
+              
+              const explode = this.add.sprite(projectile.x, projectile.y, 'lunaria_explode');
+              explode.play('lunaria_explode');
+              explode.on('animationcomplete', () => explode.destroy());
+              projectile.destroy();
+            });
+          }
+
+          playerState.onChange(() => {
+            if (playerState.x !== undefined) rpData.targetX = playerState.x;
+            if (playerState.y !== undefined) rpData.targetY = playerState.y;
+            
+            if (playerState.hp !== undefined) {
+              rpData.hp = playerState.hp;
+              if (playerState.hp <= 0) {
+                rSprite.body.enable = false; // Disable body on other clients too
+                if (rSprite.alpha === 1) {
+                  if (this.anims.exists(`${charKey}_death`)) {
+                    rSprite.play(`${charKey}_death`, true);
+                  }
+                  this.tweens.add({ targets: rSprite, alpha: 0, duration: 1000 });
+                }
+              } else {
+                this.tweens.killTweensOf(rSprite); // Stop any remote player fade-out tweens
+                rSprite.body.enable = true; // Enable body on respawn
+                rSprite.alpha = 1;
+              }
+            }
+            if (playerState.maxHp !== undefined) rpData.maxHp = playerState.maxHp;
+            
+            if (playerState.anim && playerState.anim !== 'idle') {
+               rSprite.play(playerState.anim, true);
+            } else if (!playerState.isMoving) {
+               rSprite.play(`${charKey}_idle`, true);
+            }
+            
+            if (playerState.angle !== undefined) {
+              rSprite.flipX = (playerState.angle < -90 || playerState.angle > 90);
+            }
+          });
+        }
+      });
+
+      multiplayer.room.state.players.onRemove((playerState, sessionId) => {
+        const rp = this.remotePlayers.get(sessionId);
+        if (rp) {
+          if (rp.sprite) rp.sprite.destroy();
+          if (rp.nameTag) rp.nameTag.destroy();
+          if (rp.hpBar) rp.hpBar.destroy();
+          this.remotePlayers.delete(sessionId);
+        }
+      });
+
+      // 2. Sync enemies from server (Joiner only)
+      if (!multiplayer.isHost) {
+        this.currentWaveIndex = 999; // Disable local waves triggers for Joiners
+
+        multiplayer.room.state.enemies.onAdd((enemyState, id) => {
+          const enemy = this.spawnEnemy(enemyState.x, enemyState.y, enemyState.type, enemyState.hp, 1, id);
+          enemy.targetX = enemyState.x;
+          enemy.targetY = enemyState.y;
+
+          enemyState.onChange(() => {
+            enemy.targetX = enemyState.x;
+            enemy.targetY = enemyState.y;
+            enemy.hp = enemyState.hp;
+            enemy.maxHp = enemyState.maxHp;
+            enemy.flipX = enemyState.flipX;
+            if (enemyState.anim && enemy.anims.currentAnim?.key !== enemyState.anim) {
+               if (!enemyState.anim.includes('attack')) {
+                 enemy.play(enemyState.anim, true);
+               }
+            }
+          });
+        });
+
+        multiplayer.room.state.enemies.onRemove((enemyState, id) => {
+          const enemy = this.enemies.find(e => e.id === id);
+          if (enemy && enemy.hp > 0) {
+            enemy.hp = 0;
+            this.damageEnemyLocal(enemy, 0, enemy.x, enemy.y);
+          }
+        });
+      }
+
+      // 3. Enemy Hit broadcast listener (everyone shows damage text, host applies damage)
+      multiplayer.room.onMessage("enemy_hit", (data) => {
+        const enemy = this.enemies.find(e => e.id === data.id);
+        if (enemy) {
+          this.showFloatingText(enemy.x, enemy.y - 40, `-${data.damage}`, '#ffffff');
+          if (multiplayer.isHost) {
+            this.damageEnemyLocal(enemy, data.damage, data.sourceX, data.sourceY);
+          }
+        }
+      });
+
+      // 4. Player Hit broadcast listener (everyone shows player damage, target reduces HP)
+      multiplayer.room.onMessage("player_hit", (data) => {
+        let targetSprite = null;
+        if (data.targetId === multiplayer.room.sessionId) {
+          targetSprite = this.player;
+          this.showFloatingText(this.player.x, this.player.y - 40, `-${data.damage}`, '#ff5555');
+          
+          const nextHp = this.player.hp - data.damage;
+          if (nextHp > 0 && !this.isDead) {
+            this.isHurt = true;
+            this.isAttacking = false; // Cancel attack if hit
+            
+            if (this.anims.exists(`${this.characterKey}_hurt`)) {
+              this.player.play(`${this.characterKey}_hurt`, true);
+            } else {
+              this.time.delayedCall(200, () => { this.isHurt = false; });
+            }
+            
+            this.player.setVelocity(0, 0);
+            
+            // Apply knockback
+            if (data.sourceX !== undefined && data.sourceY !== undefined) {
+              const angle = Phaser.Math.Angle.Between(data.sourceX, data.sourceY, this.player.x, this.player.y);
+              this.player.setVelocity(Math.cos(angle) * 80, Math.sin(angle) * 80);
+              setTimeout(() => { if (this.player && this.player.hp > 0 && !this.isDead) this.player.setVelocity(0); }, 150);
+            }
+          }
+        } else {
+          const rp = this.remotePlayers.get(data.targetId);
+          if (rp) {
+            targetSprite = rp.sprite;
+            this.showFloatingText(targetSprite.x, targetSprite.y - 40, `-${data.damage}`, '#ff5555');
+          }
+        }
+      });
+
+      // 5. Player Healed broadcast listener
+      multiplayer.room.onMessage("player_healed", (data) => {
+        let targetSprite = null;
+        if (data.targetId === multiplayer.room.sessionId) {
+          targetSprite = this.player;
+          this.showFloatingText(this.player.x, this.player.y - 40, `+${data.amount}`, '#4ade80');
+        } else {
+          const rp = this.remotePlayers.get(data.targetId);
+          if (rp) {
+            targetSprite = rp.sprite;
+            this.showFloatingText(targetSprite.x, targetSprite.y - 40, `+${data.amount}`, '#4ade80');
+          }
+        }
+
+        if (targetSprite && targetSprite.active && targetSprite.alpha > 0) {
+          const healEffect = this.add.sprite(targetSprite.x, targetSprite.y, 'monk_heal_effect');
+          healEffect.setDepth(targetSprite.depth + 1);
+          healEffect.play('monk_heal_effect');
+          healEffect.on('animationcomplete', () => { healEffect.destroy(); });
+        }
+      });
+
+      // 6. Enemy attack event listener (play attack animations on remote client)
+      multiplayer.room.onMessage("enemy_attacked", (data) => {
+        const enemy = this.enemies.find(e => e.id === data.id);
+        if (enemy) {
+          enemy.play(data.anim, true);
+        }
+      });
+
+      // 7. Projectile spawn event listener (for remote client visual sync)
+      multiplayer.room.onMessage("projectile_spawned", (data) => {
+        const projectile = this.enemyProjectiles.create(data.x, data.y, 'lunaria_moving');
+        projectile.play('lunaria_moving');
+        projectile.rotation = data.angle;
+        projectile.damage = data.damage;
+        projectile.setVelocity(Math.cos(data.angle) * data.speed, Math.sin(data.angle) * data.speed);
+      });
+
+      // 8. Local player state HP listener (absolute source of truth)
+      const localPlayerState = multiplayer.room.state.players.get(multiplayer.room.sessionId);
+      if (localPlayerState) {
+        localPlayerState.onChange(() => {
+          if (localPlayerState.hp !== undefined) {
+            this.player.hp = localPlayerState.hp;
+            if (this.player.hp <= 0 && !this.isDead) {
+              this.checkPlayerDeath();
+            } else if (this.player.hp > 0 && this.isDead) {
+              this.resuscitatePlayer();
+            }
+          }
+        });
+      }
+
+      // 9. Player projectile spawn listener (for remote client visual sync)
+      multiplayer.room.onMessage("player_projectile_spawned", (data) => {
+        const arrow = this.projectiles.create(data.x, data.y, 'arrow');
+        arrow.rotation = data.angle;
+        arrow.damage = data.damage;
+        arrow.setVelocity(Math.cos(data.angle) * data.speed, Math.sin(data.angle) * data.speed);
+        arrow.setDepth(50);
+        
+        this.time.delayedCall(2000, () => {
+          if (arrow && arrow.scene) arrow.destroy();
+        });
+      });
+    }
   }
 
   update() {
@@ -265,12 +678,13 @@ export default class GameScene extends Phaser.Scene {
       return enemy.hp > 0 || enemy.anims.isPlaying;
     });
 
-    // Count alive enemies for Wave progression
-    const aliveEnemies = this.enemies.filter(e => e.hp > 0).length;
-    
-    if (aliveEnemies === 0 && this.currentWaveIndex < this.waves.length) {
-      this.startWave(this.currentWaveIndex);
-      this.currentWaveIndex++;
+    // Count alive enemies for Wave progression (Host or Singleplayer only)
+    if (!multiplayer.room || multiplayer.isHost) {
+      const aliveEnemies = this.enemies.filter(e => e.hp > 0).length;
+      if (aliveEnemies === 0 && this.currentWaveIndex < this.waves.length) {
+        this.startWave(this.currentWaveIndex);
+        this.currentWaveIndex++;
+      }
     }
 
     // Draw Player HP Bar
@@ -331,27 +745,42 @@ export default class GameScene extends Phaser.Scene {
         if (this.characterKey === 'monk') {
           // AoE Heal logic (Area of Effect)
           const healRadius = 150; // Jangkauan radius area heal
-          const allies = [this.player]; // Disiapkan untuk multiplayer di masa depan
+          const allies = [{ sprite: this.player, id: multiplayer.room ? multiplayer.room.sessionId : 'local' }];
+          if (multiplayer.room) {
+            this.remotePlayers.forEach((rp, sessionId) => {
+              allies.push({ sprite: rp.sprite, id: sessionId });
+            });
+          }
           
           allies.forEach(ally => {
-            if (ally.hp <= 0) return;
-            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, ally.x, ally.y);
+            let allyHp = 0;
+            if (ally.id === (multiplayer.room ? multiplayer.room.sessionId : 'local')) {
+              allyHp = this.player.hp;
+            } else {
+              const pState = multiplayer.room.state.players.get(ally.id);
+              allyHp = pState ? pState.hp : 0;
+            }
+            if (allyHp <= 0) return;
+
+            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, ally.sprite.x, ally.sprite.y);
             
             if (dist <= healRadius) {
               const healAmt = CHARACTER_CONFIG.monk.attack;
-              ally.hp += healAmt;
-              const maxHp = ally === this.player ? this.playerMaxHp : ally.maxHp;
-              if (ally.hp > maxHp) ally.hp = maxHp;
               
-              this.showFloatingText(ally.x, ally.y - 40, `+${healAmt}`, '#4ade80');
+              if (multiplayer.room) {
+                // Send heal event to server, it broadcasts player_healed to everyone
+                multiplayer.room.send("heal_player", { targetId: ally.id, amount: healAmt });
+              } else {
+                // Single player mode heal
+                this.player.hp += healAmt;
+                if (this.player.hp > this.playerMaxHp) this.player.hp = this.playerMaxHp;
+                this.showFloatingText(this.player.x, this.player.y - 40, `+${healAmt}`, '#4ade80');
 
-              // Play heal_effect sprite overlay for each healed ally
-              const healEffect = this.add.sprite(ally.x, ally.y, 'monk_heal_effect');
-              healEffect.setDepth(ally.depth + 1); // Layer 2 (above character)
-              healEffect.play('monk_heal_effect');
-              healEffect.on('animationcomplete', () => {
-                healEffect.destroy();
-              });
+                const healEffect = this.add.sprite(ally.sprite.x, ally.sprite.y, 'monk_heal_effect');
+                healEffect.setDepth(ally.sprite.depth + 1);
+                healEffect.play('monk_heal_effect');
+                healEffect.on('animationcomplete', () => { healEffect.destroy(); });
+              }
             }
           });
         } else if (CHARACTER_CONFIG[this.characterKey].attackType === 'ranged') {
@@ -381,6 +810,16 @@ export default class GameScene extends Phaser.Scene {
             arrow.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
             arrow.setDepth(50);
             
+            if (multiplayer.room) {
+              multiplayer.room.send("spawn_player_projectile", {
+                x: this.player.x,
+                y: this.player.y,
+                angle: angle,
+                speed: speed,
+                damage: arrow.damage
+              });
+            }
+            
             this.time.delayedCall(2000, () => {
               if (arrow && arrow.scene) arrow.destroy();
             });
@@ -394,40 +833,13 @@ export default class GameScene extends Phaser.Scene {
             const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
             if (dist < 45 && isFacingEnemy) {
               const dmg = CHARACTER_CONFIG[this.characterKey].attack;
-              enemy.hp -= dmg;
-              this.showFloatingText(enemy.x, enemy.y - 40, `-${dmg}`, '#ffffff');
               
-              if (enemy.hp <= 0) {
-                enemy.hpBar.clear();
-                enemy.setVelocity(0);
-                enemy.body.enable = false;
-                if (this.anims.exists(`${enemy.type}_death`)) {
-                  enemy.play(`${enemy.type}_death`);
-                }
-                
-                // Fade out after 1 detik
-                this.time.delayedCall(1000, () => {
-                  if (enemy && enemy.scene) {
-                    this.tweens.add({
-                      targets: enemy,
-                      alpha: 0,
-                      duration: 1000,
-                      onComplete: () => {
-                        if (enemy) enemy.destroy();
-                      }
-                    });
-                  }
-                });
+              if (multiplayer.room) {
+                // Just send to server, server broadcasts enemy_hit
+                multiplayer.room.send("damage_enemy", { id: enemy.id, damage: dmg, sourceX: this.player.x, sourceY: this.player.y });
               } else {
-                enemy.isHurt = true;
-                if (this.anims.exists(`${enemy.type}_hurt`)) {
-                  enemy.play(`${enemy.type}_hurt`, true);
-                }
-                enemy.isAttacking = false; // Cancel attack if hit
-
-                const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-                enemy.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);
-                setTimeout(() => { if (enemy && enemy.hp > 0) enemy.setVelocity(0); }, 150);
+                this.showFloatingText(enemy.x, enemy.y - 40, `-${dmg}`, '#ffffff');
+                this.damageEnemyLocal(enemy, dmg, this.player.x, this.player.y);
               }
             }
           });
@@ -483,8 +895,40 @@ export default class GameScene extends Phaser.Scene {
       // Draw HP Bar
       this.drawHealthBar(enemy.hpBar, enemy.x - 15, enemy.y - 25, 30, 4, enemy.hp, enemy.maxHp, 0xf87171);
 
-      if (this.player.hp <= 0) {
+      if (multiplayer.room && !multiplayer.isHost) {
+        // Joiners - Smooth position interpolation (lerp)
+        if (enemy.targetX !== undefined) {
+          enemy.x += (enemy.targetX - enemy.x) * 0.15;
+          enemy.y += (enemy.targetY - enemy.y) * 0.15;
+        }
+        return; // Skip local AI simulation for Joiners
+      }
+
+      // 1. Find nearest alive player
+      let targetPlayer = null;
+      let minDistance = Infinity;
+      
+      const checkTarget = (p, hp) => {
+        if (hp <= 0) return;
+        const d = Phaser.Math.Distance.Between(p.x, p.y, enemy.x, enemy.y);
+        if (d < minDistance) {
+          minDistance = d;
+          targetPlayer = p;
+        }
+      };
+      
+      checkTarget(this.player, this.player.hp);
+      
+      if (multiplayer.room) {
+        this.remotePlayers.forEach((rp) => {
+          checkTarget(rp.sprite, rp.hp);
+        });
+      }
+      
+      // If no alive player, set velocity to 0 and idle
+      if (!targetPlayer) {
         enemy.setVelocity(0);
+        enemy.isAttacking = false; // Reset attack lock if target died during attack animation
         if (!enemy.isHurt) enemy.play(`${enemy.type}_idle`, true);
         return;
       }
@@ -494,7 +938,7 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
-      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+      const dist = Phaser.Math.Distance.Between(targetPlayer.x, targetPlayer.y, enemy.x, enemy.y);
       const eConfig = CHARACTER_CONFIG[enemy.type];
       const maxAttackRange = eConfig.attackRange || ((enemy.type === 'demon' || enemy.type === 'orc') ? 40 : 35);
 
@@ -508,59 +952,85 @@ export default class GameScene extends Phaser.Scene {
         if (this.anims.exists(`${enemy.type}_attack2`) && Math.random() < 0.5) {
           eAction = 'attack2';
         }
-        enemy.play(`${enemy.type}_${eAction}`, true);
-        enemy.flipX = (enemy.x > this.player.x);
+        const attackAnim = `${enemy.type}_${eAction}`;
+        enemy.play(attackAnim, true);
+        enemy.flipX = (enemy.x > targetPlayer.x);
+        
+        if (multiplayer.room) {
+          multiplayer.room.send("enemy_attack", { id: enemy.id, anim: attackAnim });
+        }
         
         // Delay attack hit or spawn projectile
         if (eConfig.attackType === 'ranged') {
           this.time.delayedCall(300, () => {
-            if (this.player.hp > 0 && enemy.hp > 0 && !enemy.isHurt) {
+            if (targetPlayer && targetPlayer.active && enemy.hp > 0 && !enemy.isHurt) {
               const projectile = this.enemyProjectiles.create(enemy.x, enemy.y, 'lunaria_moving');
               projectile.play('lunaria_moving');
               projectile.damage = eConfig.attack;
-              const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+              const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, targetPlayer.x, targetPlayer.y);
               projectile.rotation = angle;
               const speed = 250;
               projectile.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+              
+              if (multiplayer.room) {
+                multiplayer.room.send("spawn_projectile", {
+                  x: enemy.x,
+                  y: enemy.y,
+                  angle: angle,
+                  speed: speed,
+                  damage: eConfig.attack
+                });
+              }
             }
           });
         } else {
           this.time.delayedCall(300, () => {
-            if (this.player.hp > 0 && enemy.hp > 0 && !enemy.isHurt) {
-              const currentDist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+            if (targetPlayer && targetPlayer.active && enemy.hp > 0 && !enemy.isHurt) {
+              const currentDist = Phaser.Math.Distance.Between(targetPlayer.x, targetPlayer.y, enemy.x, enemy.y);
               if (currentDist < maxAttackRange + 15) {
-                const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
-                if (this.isGuarding && isFacingEnemy) {
-                  // Ignore damage, repel enemy
-                  const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-                  enemy.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);
-                  setTimeout(() => { if (enemy && enemy.hp > 0) enemy.setVelocity(0); }, 150);
-                } else {
-                  const dmg = eConfig.attack;
-                  this.player.hp -= dmg;
-                  this.showFloatingText(this.player.x, this.player.y - 40, `-${dmg}`, '#ff5555');
-                  
-                  if (this.player.hp <= 0) {
-                    this.playerHpBar.clear();
-                    this.player.setVelocity(0);
-                    if (this.anims.exists(`${this.characterKey}_death`)) {
-                      this.player.play(`${this.characterKey}_death`);
-                    }
-                    this.isGameOver = true;
+                // Check if target is local player
+                if (targetPlayer === this.player) {
+                  const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
+                  if (this.isGuarding && isFacingEnemy) {
+                    // Ignore damage, repel enemy
+                    const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+                    enemy.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);
+                    setTimeout(() => { if (enemy && enemy.hp > 0) enemy.setVelocity(0); }, 150);
                   } else {
-                    this.isHurt = true;
-                    if (this.anims.exists(`${this.characterKey}_hurt`)) {
-                      this.player.play(`${this.characterKey}_hurt`, true);
+                    const dmg = eConfig.attack;
+                    
+                    if (multiplayer.room) {
+                      multiplayer.room.send("damage_player", { targetId: multiplayer.room.sessionId, damage: dmg, sourceX: enemy.x, sourceY: enemy.y });
                     } else {
-                      // Fallback for characters without hurt animation
-                      this.time.delayedCall(200, () => { this.isHurt = false; });
-                    }
-                    this.isAttacking = false; // Cancel attack if hit
+                      this.player.hp -= dmg;
+                      this.showFloatingText(this.player.x, this.player.y - 40, `-${dmg}`, '#ff5555');
+                      
+                      this.checkPlayerDeath();
+                      if (this.player.hp > 0) {
+                        this.isHurt = true;
+                        if (this.anims.exists(`${this.characterKey}_hurt`)) {
+                          this.player.play(`${this.characterKey}_hurt`, true);
+                        } else {
+                          this.time.delayedCall(200, () => { this.isHurt = false; });
+                        }
+                        this.isAttacking = false; // Cancel attack if hit
 
-                    // Knockback for player
-                    const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
-                    this.player.setVelocity(Math.cos(angle) * 80, Math.sin(angle) * 80);
-                    setTimeout(() => { if (this.player && this.player.hp > 0 && !this.isGameOver) this.player.setVelocity(0); }, 150);
+                        // Knockback for player
+                        const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
+                        this.player.setVelocity(Math.cos(angle) * 80, Math.sin(angle) * 80);
+                        setTimeout(() => { if (this.player && this.player.hp > 0 && !this.isDead) this.player.setVelocity(0); }, 150);
+                      }
+                    }
+                  }
+                } else {
+                  // Damage remote player
+                  let targetSessionId = null;
+                  this.remotePlayers.forEach((rp, sessionId) => {
+                    if (rp.sprite === targetPlayer) targetSessionId = sessionId;
+                  });
+                  if (targetSessionId) {
+                    const dmg = eConfig.attack;
+                    multiplayer.room.send("damage_player", { targetId: targetSessionId, damage: dmg, sourceX: enemy.x, sourceY: enemy.y });
                   }
                 }
               }
@@ -569,7 +1039,7 @@ export default class GameScene extends Phaser.Scene {
         }
       } else if (dist < 350) {
         // Follow player
-        this.physics.moveToObject(enemy, this.player, CHARACTER_CONFIG[enemy.type].speed);
+        this.physics.moveToObject(enemy, targetPlayer, CHARACTER_CONFIG[enemy.type].speed);
         enemy.play(`${enemy.type}_walk`, true);
         enemy.flipX = (enemy.body.velocity.x < 0);
       } else {
@@ -612,6 +1082,57 @@ export default class GameScene extends Phaser.Scene {
 
     if (this.rangeIndicator && this.player) {
       this.rangeIndicator.setPosition(this.player.x, this.player.y);
+    }
+    
+    // Sync to Multiplayer
+    if (multiplayer.room) {
+      // 1. Lerp remote players' positions smoothly on local client
+      this.remotePlayers.forEach((rp) => {
+        if (rp.sprite && rp.sprite.active) {
+          rp.sprite.x += (rp.targetX - rp.sprite.x) * 0.15;
+          rp.sprite.y += (rp.targetY - rp.sprite.y) * 0.15;
+          if (rp.nameTag) {
+            rp.nameTag.setPosition(rp.sprite.x, rp.sprite.y - 45);
+          }
+          if (rp.hpBar) {
+            if (rp.hp > 0) {
+              this.drawHealthBar(rp.hpBar, rp.sprite.x - 20, rp.sprite.y - 35, 40, 5, rp.hp, rp.maxHp, 0x4ade80);
+            } else {
+              rp.hpBar.clear();
+            }
+          }
+        }
+      });
+
+      // 2. Local player move sync
+      if (this.player.hp > 0 || this.isDead) {
+        let currentAnim = 'idle';
+        if (this.player.anims.currentAnim) {
+           currentAnim = this.player.anims.currentAnim.key;
+        }
+        const isMoving = this.player.body.velocity.x !== 0 || this.player.body.velocity.y !== 0;
+        let angle = 0;
+        if (this.player.flipX) angle = 180;
+        
+        multiplayer.sendMove(this.player.x, this.player.y, 0, angle, currentAnim, isMoving, this.player.hp, this.playerMaxHp);
+      }
+
+      // 3. Host enemy sync to server
+      if (multiplayer.isHost) {
+        const enemyData = this.enemies
+          .filter(e => e.active && e.hp > 0)
+          .map(e => ({
+            id: e.id,
+            type: e.type,
+            x: e.x,
+            y: e.y,
+            hp: e.hp,
+            maxHp: e.maxHp,
+            anim: e.anims.currentAnim ? e.anims.currentAnim.key : 'walk',
+            flipX: e.flipX
+          }));
+        multiplayer.room.send("host_update_enemies", enemyData);
+      }
     }
   }
 
