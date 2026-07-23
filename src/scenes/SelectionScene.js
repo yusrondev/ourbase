@@ -4,13 +4,13 @@ import { CHARACTER_CONFIG } from '../config/characters.js';
 export default class SelectionScene extends Phaser.Scene {
   constructor() {
     super('SelectionScene');
-    this.characters = Object.keys(CHARACTER_CONFIG);
+    this.characters = Object.keys(CHARACTER_CONFIG).filter(key => CHARACTER_CONFIG[key].name);
     this.currentIndex = 0;
   }
 
   preload() {
     // Load all character spritesheets here so they are ready globally
-    this.characters.forEach(key => {
+    Object.keys(CHARACTER_CONFIG).forEach(key => {
       const config = CHARACTER_CONFIG[key];
       Object.keys(config.animations).forEach(anim => {
         this.load.spritesheet(
@@ -26,23 +26,15 @@ export default class SelectionScene extends Phaser.Scene {
     const width = this.cameras.main.width;
     const height = this.cameras.main.height;
 
-    // Background
-    this.bg = this.add.rectangle(0, 0, width, height, 0x1f2937).setOrigin(0);
+    // Background (Dark gray/navy gradient to align with HTML sidebar)
+    this.bg = this.add.rectangle(0, 0, width, height, 0x0f172a).setOrigin(0);
 
-    // Title
-    this.titleText = this.add.text(width / 2, 80, 'CHOOSE YOUR HERO', {
-      fontSize: '36px',
-      fill: '#ffffff',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-
-    // Character Previews - dynamically create animations first
-    this.characters.forEach(key => {
+    // Register animations
+    Object.keys(CHARACTER_CONFIG).forEach(key => {
       const config = CHARACTER_CONFIG[key];
       Object.keys(config.animations).forEach(anim => {
         const animConfig = config.animations[anim];
         
-        // Prevent duplicate animation creation errors if the scene is restarted
         if (!this.anims.exists(`${key}_${anim}`)) {
           this.anims.create({
             key: `${key}_${anim}`,
@@ -54,124 +46,60 @@ export default class SelectionScene extends Phaser.Scene {
       });
     });
 
-    // TitleScene already handled Fullscreen/Landscape, so we just add a resize listener
-    this.scale.on('resize', this.resizeUI, this);
-
-    // Preview Sprite Container
-    this.previewSprite = this.add.sprite(width / 2, 350, `${this.characters[this.currentIndex]}_idle`);
+    // Preview Sprite centered in the transparent left 35% of the screen
+    // 35% of width is the preview zone, so middle is width * 0.175
+    this.previewSprite = this.add.sprite(width * 0.175, height * 0.38, `${this.characters[this.currentIndex]}_idle`);
     const initialConfig = CHARACTER_CONFIG[this.characters[this.currentIndex]];
-    this.previewSprite.setScale(3.5 * (initialConfig.scale || 1)); // Made bigger for 720p
+    this.previewSprite.setScale(3.5 * (initialConfig.scale || 1));
     this.previewSprite.play(`${this.characters[this.currentIndex]}_idle`);
 
-    // Character Name Label
-    this.nameText = this.add.text(width / 2, 520, this.getFormattedName(this.characters[this.currentIndex]), {
-      fontSize: '36px',
-      fill: '#4ade80',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-
-    // Stats Label
-    this.statsText = this.add.text(width / 2, 570, `HP: ${initialConfig.hp}  |  ATK: ${initialConfig.attack}  |  SPD: ${initialConfig.speed}`, {
-      fontSize: '24px',
-      fill: '#d1d5db'
-    }).setOrigin(0.5);
-
-    // Prev Button
-    this.btnPrev = this.add.text(width / 2 - 250, 350, '< PREV', {
-      fontSize: '36px',
-      fill: '#9ca3af',
-      fontStyle: 'bold'
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    
-    this.btnPrev.on('pointerover', () => this.btnPrev.setFill('#ffffff'));
-    this.btnPrev.on('pointerout', () => this.btnPrev.setFill('#9ca3af'));
-    this.btnPrev.on('pointerdown', () => this.changeCharacter(-1));
-
-    // Next Button
-    this.btnNext = this.add.text(width / 2 + 250, 350, 'NEXT >', {
-      fontSize: '36px',
-      fill: '#9ca3af',
-      fontStyle: 'bold'
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    
-    this.btnNext.on('pointerover', () => this.btnNext.setFill('#ffffff'));
-    this.btnNext.on('pointerout', () => this.btnNext.setFill('#9ca3af'));
-    this.btnNext.on('pointerdown', () => this.changeCharacter(1));
-
-    // Start Button
-    this.btnStart = this.add.rectangle(width / 2, 650, 300, 80, 0x4ade80)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerover', () => this.btnStart.setFillStyle(0x22c55e))
-      .on('pointerout', () => this.btnStart.setFillStyle(0x4ade80))
-      .on('pointerdown', () => {
-        this.scene.start('GameScene', { character: this.characters[this.currentIndex] });
-      });
-
-    this.btnStartText = this.add.text(width / 2, 650, 'START GAME', {
-      fontSize: '28px',
-      fill: '#000000',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-
-    // Force proportional layout calculation on initial creation
+    // Handle Resize
+    this.scale.on('resize', this.resizeUI, this);
     this.resizeUI(this.scale);
+
+    // Expose select callback to HTML overlay
+    window.selectCharacter = (key) => {
+      const index = this.characters.indexOf(key);
+      if (index !== -1) {
+        this.currentIndex = index;
+        const config = CHARACTER_CONFIG[key];
+        
+        this.previewSprite.setTexture(`${key}_idle`);
+        this.previewSprite.play(`${key}_idle`);
+        
+        // Re-scale on change
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        const baseScale = (config.scale || 1);
+        const responsiveScale = (height / 720) * 4.5;
+        this.previewSprite.setScale(baseScale * Math.max(1.8, responsiveScale));
+      }
+    };
+
+    // Expose start game callback to HTML overlay
+    window.startGame = () => {
+      const selectedHero = this.characters[this.currentIndex];
+      // Transition to game scene
+      this.scene.start('GameScene', { character: selectedHero });
+    };
   }
 
   resizeUI(gameSize) {
     const width = gameSize.width;
     const height = gameSize.height;
 
-    // Ensure camera is updated
     this.cameras.main.setViewport(0, 0, width, height);
 
     if (this.bg) {
       this.bg.setDisplaySize(width, height);
       
-      // Use percentages of height/width to ensure elements never overlap
-      this.titleText.setPosition(width / 2, height * 0.15);
+      // Update preview sprite position based on layout
+      this.previewSprite.setPosition(width * 0.175, height * 0.38);
       
-      this.previewSprite.setPosition(width / 2, height * 0.45);
-      // Adjust sprite scale based on screen height to avoid being too large on small screens
-      const initialConfig = CHARACTER_CONFIG[this.characters[this.currentIndex]];
-      const baseScale = (initialConfig.scale || 1);
-      const responsiveScale = (height / 720) * 3.5; 
-      this.previewSprite.setScale(baseScale * Math.max(1.5, responsiveScale));
-      
-      this.nameText.setPosition(width / 2, height * 0.68);
-      this.statsText.setPosition(width / 2, height * 0.78);
-      
-      this.btnPrev.setPosition(width / 2 - (width * 0.25), height * 0.45);
-      this.btnNext.setPosition(width / 2 + (width * 0.25), height * 0.45);
-      
-      this.btnStart.setPosition(width / 2, height * 0.90);
-      this.btnStartText.setPosition(width / 2, height * 0.90);
-      this.btnStart.setSize(width * 0.4, height * 0.12);
+      const config = CHARACTER_CONFIG[this.characters[this.currentIndex]];
+      const baseScale = (config.scale || 1);
+      const responsiveScale = (height / 720) * 4.5;
+      this.previewSprite.setScale(baseScale * Math.max(1.8, responsiveScale));
     }
-  }
-
-  changeCharacter(dir) {
-    this.currentIndex += dir;
-    if (this.currentIndex < 0) this.currentIndex = this.characters.length - 1;
-    if (this.currentIndex >= this.characters.length) this.currentIndex = 0;
-
-    const key = this.characters[this.currentIndex];
-    const config = CHARACTER_CONFIG[key];
-    this.previewSprite.setTexture(`${key}_idle`);
-    this.previewSprite.play(`${key}_idle`);
-    this.previewSprite.setScale(2.5 * (config.scale || 1));
-    this.nameText.setText(this.getFormattedName(key));
-    this.statsText.setText(`HP: ${config.hp}  |  ATK: ${config.attack}  |  SPD: ${config.speed}`);
-  }
-
-  getFormattedName(key) {
-    const map = {
-      human: 'Darius',
-      soldier2: 'Victor',
-      slime: 'Slimo',
-      blood: 'Ravok',
-      demon: 'Azrael',
-      orc: 'Morguk'
-    };
-    return map[key] || key.toUpperCase();
   }
 }

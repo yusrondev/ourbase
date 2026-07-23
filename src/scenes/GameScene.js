@@ -237,6 +237,20 @@ export default class GameScene extends Phaser.Scene {
                 if (this.anims.exists(`${enemy.type}_death`)) {
                   enemy.play(`${enemy.type}_death`);
                 }
+                
+                // Fade out after 1 detik
+                this.time.delayedCall(1000, () => {
+                  if (enemy && enemy.scene) {
+                    this.tweens.add({
+                      targets: enemy,
+                      alpha: 0,
+                      duration: 1000,
+                      onComplete: () => {
+                        if (enemy) enemy.destroy();
+                      }
+                    });
+                  }
+                });
               } else {
                 enemy.isHurt = true;
                 if (this.anims.exists(`${enemy.type}_hurt`)) {

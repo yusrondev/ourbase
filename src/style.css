@@ -27,6 +27,279 @@ body {
   display: block;
 }
 
+#selection-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 999;
+  display: flex;
+  box-sizing: border-box;
+}
+
+.selection-preview-area {
+  width: 35%;
+  height: 100%;
+  pointer-events: none; /* Let clicks pass through if needed, though they shouldn't */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding-bottom: 25px;
+  box-sizing: border-box;
+}
+
+.selection-preview-area .hero-stats {
+  width: 85%;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px 18px;
+  box-sizing: border-box;
+}
+
+.selection-panel-area {
+  width: 65%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(12px);
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 15px 25px;
+}
+
+.selection-header {
+  margin-bottom: 10px;
+}
+
+.selection-header h2 {
+  font-size: 28px;
+  margin: 0 0 10px 0;
+  color: #f8fafc;
+  letter-spacing: 1px;
+}
+
+.role-tabs {
+  display: flex;
+  gap: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 5px;
+}
+
+.role-tab {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.role-tab:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.role-tab.active {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  box-shadow: inset 0 0 4px rgba(74, 222, 128, 0.2);
+}
+
+.selection-body {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  overflow: hidden;
+  margin-bottom: 15px;
+}
+
+.hero-details {
+  width: 45%;
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+#detail-name {
+  font-size: 24px;
+  margin: 0 0 5px 0;
+  color: #4ade80;
+  font-weight: bold;
+}
+
+.hero-role-badge {
+  align-self: flex-start;
+  font-size: 11px;
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.hero-desc {
+  font-size: 13px;
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin: 0 0 15px 0;
+  flex-grow: 1;
+}
+
+.hero-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.stat-label {
+  width: 30px;
+  color: #94a3b8;
+  font-weight: bold;
+}
+
+.stat-bar-container {
+  flex: 1;
+  height: 8px;
+  background: #1e293b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stat-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #0ea5e9);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+#bar-hp {
+  background: linear-gradient(90deg, #4ade80, #22c55e);
+}
+
+#bar-atk {
+  background: linear-gradient(90deg, #f87171, #ef4444);
+}
+
+.stat-val {
+  width: 25px;
+  text-align: right;
+  font-weight: bold;
+  color: #f8fafc;
+}
+
+.hero-grid-container {
+  width: 55%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+  gap: 10px;
+  padding: 5px;
+}
+
+.hero-card {
+  background: rgba(30, 41, 59, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.hero-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.hero-card.active {
+  background: rgba(74, 222, 128, 0.1);
+  border-color: #4ade80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.3);
+}
+
+.hero-avatar {
+  background-repeat: no-repeat;
+  background-position: center;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  box-sizing: border-box;
+}
+
+.hero-card.active .hero-avatar {
+  border-color: #4ade80;
+}
+
+.hero-name-label {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 6px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.hero-card.active .hero-name-label {
+  color: #4ade80;
+}
+
+.selection-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+#select-hero-btn {
+  padding: 12px 35px;
+  font-size: 18px;
+  font-weight: bold;
+  background-color: #4ade80;
+  color: #020617;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+  transition: transform 0.1s, background-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.2);
+}
+
+#select-hero-btn:hover {
+  background-color: #22c55e;
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+}
+
+#select-hero-btn:active {
+  transform: scale(0.97);
+}
+
 #start-screen {
   position: absolute;
   top: 0;
