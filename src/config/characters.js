@@ -115,9 +115,26 @@ export const CHARACTER_CONFIG = {
     animations: {
       idle: { frames: 6, rate: 8, repeat: -1 },
       walk: { frames: 8, rate: 10, repeat: -1 },
-      attack: { frames: 6, rate: 10, repeat: 0 },
+      attack: { frames: 7, rate: 10, repeat: 0 },
       death: { frames: 4, rate: 8, repeat: 0 },
       hurt: { frames: 4, rate: 8, repeat: 0 }
+    }
+  },
+  kaizer: {
+    folder: 'kaizer',
+    frameWidth: 250,
+    frameHeight: 250,
+    hp: 250,
+    attack: 30,
+    speed: 120,
+    scale: 1,
+    animations: {
+      idle: { frames: 8, rate: 8, repeat: -1 },
+      walk: { frames: 8, rate: 10, repeat: -1 },
+      attack: { frames: 8, rate: 10, repeat: 0 },
+      attack2: { frames: 8, rate: 10, repeat: 0 },
+      death: { frames: 7, rate: 8, repeat: 0 },
+      hurt: { frames: 3, rate: 8, repeat: 0 }
     }
   },
   monk: {
@@ -180,7 +197,7 @@ export const CHARACTER_CONFIG = {
   kael: {
     name: 'Kael',
     role: 'Fighter',
-    description: 'Petarung mematikan dengan kombo serangan ganda (Attack 1 & Attack 2).',
+    description: 'Petarung mematikan dengan kombo serangan',
     folder: 'kael',
     frameWidth: 180,
     frameHeight: 180,
@@ -200,7 +217,7 @@ export const CHARACTER_CONFIG = {
   lucifer: {
     name: 'Lucifer',
     role: 'Fighter',
-    description: 'Penguasa kegelapan dengan kekuatan penghancur ganda (Attack 1 & Attack 2).',
+    description: 'Penguasa kegelapan dengan kekuatan penghancur',
     folder: 'lucifer',
     frameWidth: 200,
     frameHeight: 200,
@@ -215,6 +232,26 @@ export const CHARACTER_CONFIG = {
       attack2: { frames: 4, rate: 12, repeat: 0 },
       hurt: { frames: 3, rate: 8, repeat: 0 },
       death: { frames: 7, rate: 8, repeat: 0 }
+    }
+  },
+  shifu: {
+    name: 'Shifu',
+    role: 'Monk',
+    description: 'Guru bijaksana dengan kecepatan serangan luar biasa',
+    folder: 'shifu',
+    frameWidth: 200,
+    frameHeight: 200,
+    hp: 100,
+    attack: 25,
+    speed: 180,
+    scale: 0.8,
+    animations: {
+      idle: { frames: 8, rate: 8, repeat: -1 },
+      walk: { frames: 8, rate: 12, repeat: -1 },
+      attack: { frames: 6, rate: 15, repeat: 0 },
+      attack2: { frames: 6, rate: 15, repeat: 0 },
+      hurt: { frames: 4, rate: 8, repeat: 0 },
+      death: { frames: 6, rate: 8, repeat: 0 }
     }
   }
 };

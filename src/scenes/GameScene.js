@@ -123,6 +123,11 @@ export default class GameScene extends Phaser.Scene {
       enemy.on(`animationcomplete-${type}_attack`, () => {
         enemy.isAttacking = false;
       });
+      if (this.anims.exists(`${type}_attack2`)) {
+        enemy.on(`animationcomplete-${type}_attack2`, () => {
+          enemy.isAttacking = false;
+        });
+      }
       
       enemy.on(`animationcomplete-${type}_hurt`, () => {
         enemy.isHurt = false;
@@ -146,7 +151,9 @@ export default class GameScene extends Phaser.Scene {
         { type: 'slime', x: 800, y: 1200 }
       ],
       // Wave 4: Orc
-      [{ type: 'orc', x: 1000, y: 1200 }]
+      [{ type: 'orc', x: 1000, y: 1200 }],
+      // Wave 5: Kaizer (Boss)
+      [{ type: 'kaizer', x: 1000, y: 1000, hpOverride: 500, scale: 1.5 }]
     ];
     this.currentWaveIndex = 0;
     
@@ -234,7 +241,7 @@ export default class GameScene extends Phaser.Scene {
     } else if (isActionTriggered && this.player.hp > 0) {
       this.isAttacking = true;
       let actionName = this.characterKey === 'monk' ? 'heal' : 'attack';
-      if (this.characterKey === 'kael' || this.characterKey === 'lucifer') {
+      if (this.characterKey === 'kael' || this.characterKey === 'lucifer' || this.characterKey === 'shifu') {
         actionName = Math.random() < 0.5 ? 'attack' : 'attack2';
       }
       this.player.play(`${this.characterKey}_${actionName}`, true);
@@ -418,7 +425,11 @@ export default class GameScene extends Phaser.Scene {
         // Enemy attacks
         enemy.isAttacking = true;
         enemy.setVelocity(0, 0);
-        enemy.play(`${enemy.type}_attack`, true);
+        let eAction = 'attack';
+        if (this.anims.exists(`${enemy.type}_attack2`) && Math.random() < 0.5) {
+          eAction = 'attack2';
+        }
+        enemy.play(`${enemy.type}_${eAction}`, true);
         enemy.flipX = (enemy.x > this.player.x);
         
         // Delay attack hit
