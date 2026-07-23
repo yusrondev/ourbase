@@ -165,12 +165,12 @@ export default class SelectionScene extends Phaser.Scene {
 
   getFormattedName(key) {
     const map = {
-      human: 'Human Soldier',
-      soldier2: 'Advanced Soldier',
-      slime: 'Slime Monster',
-      blood: 'Blood Monster',
-      demon: 'Demon Overlord',
-      orc: 'Brutal Orc'
+      human: 'Darius',
+      soldier2: 'Victor',
+      slime: 'Slimo',
+      blood: 'Ravok',
+      demon: 'Azrael',
+      orc: 'Morguk'
     };
     return map[key] || key.toUpperCase();
   }

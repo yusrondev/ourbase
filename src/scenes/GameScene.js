@@ -384,8 +384,8 @@ export default class GameScene extends Phaser.Scene {
       
       const mapX = 20;
       const mapY = 20;
-      const mapW = 150;
-      const mapH = 150;
+      const mapW = 90;
+      const mapH = 90;
       const scaleX = mapW / this.WORLD_WIDTH;
       const scaleY = mapH / this.WORLD_HEIGHT;
 
