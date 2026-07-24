@@ -101,9 +101,8 @@
     </div>
 
     <div id="respawn-overlay" style="display: none;" class="respawn-overlay">
-      <div class="respawn-box">
-        <h3>YOU DIED</h3>
-        <p>Respawning in <span id="respawn-timer">5</span>s...</p>
+      <div class="respawn-simple-text">
+        Respawning in <span id="respawn-timer">5</span>s
       </div>
     </div>
 
@@ -121,6 +120,13 @@
     </div>
 
     <div id="game-container"></div>
+    
+    <!-- HTML Minimap Overlay -->
+    <div id="html-minimap" style="display: none;">
+      <div id="minimap-bg"></div>
+      <div id="minimap-entities"></div>
+    </div>
+
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

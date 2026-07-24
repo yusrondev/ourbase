@@ -44,8 +44,7 @@ export default class GameScene extends Phaser.Scene {
     // ── Collision Debug Toggle ──
     this.physics.world.createDebugGraphic();
     this.physics.world.drawDebug = false;
-    this.add.text(10, 40, 'Debug Collision: Tekan [O]', { fontSize: '12px', fill: '#0f0' })
-      .setScrollFactor(0).setDepth(1000);
+    // O key to toggle is kept, but text is hidden
     this.input.keyboard.on('keydown-O', () => {
       this.physics.world.drawDebug = !this.physics.world.drawDebug;
       if (!this.physics.world.drawDebug) {
@@ -165,9 +164,8 @@ export default class GameScene extends Phaser.Scene {
       }
       
       if (multiplayer.room) {
-        if (multiplayer.isHost) {
-          multiplayer.room.send("damage_player", { targetId: multiplayer.room.sessionId, damage: dmg, sourceX: projectile.x, sourceY: projectile.y });
-        }
+        // Any client getting hit by a projectile tells the server
+        multiplayer.room.send("damage_player", { targetId: multiplayer.room.sessionId, damage: dmg, sourceX: projectile.x, sourceY: projectile.y });
       } else {
         // Single player mode
         if (this.isGuarding) {
@@ -183,7 +181,7 @@ export default class GameScene extends Phaser.Scene {
             player.on('animationcomplete', () => { player.isHurt = false; });
           }
         }
-        this.checkPlayerDeath();
+        if (player.hp <= 0 && !this.isDead) this.checkPlayerDeath();
       }
       
       const explode = this.add.sprite(projectile.x, projectile.y, 'lunaria_explode');
@@ -218,6 +216,16 @@ export default class GameScene extends Phaser.Scene {
       if (parts.length >= 2) {
         const animKey = parts.slice(1).join('_');
         this.updateHitboxForAnim(this.player, this.characterKey, animKey);
+      }
+      this.player.hasAttackedThisCycle = false;
+      this.player.hitTargets = new Set();
+    });
+
+    this.player.on('animationupdate', (anim, frame) => {
+      const parts = anim.key.split('_');
+      if (parts.length >= 2 && anim.key.includes('attack')) {
+        const animKey = parts.slice(1).join('_');
+        this.processAttackHitbox(this.player, animKey, frame, true);
       }
     });
 
@@ -301,6 +309,16 @@ export default class GameScene extends Phaser.Scene {
         if (parts.length >= 2) {
           const animKey = parts.slice(1).join('_');
           this.updateHitboxForAnim(enemy, type, animKey);
+        }
+        enemy.hasAttackedThisCycle = false;
+        enemy.hitTargets = new Set();
+      });
+
+      enemy.on('animationupdate', (anim, frame) => {
+        const parts = anim.key.split('_');
+        if (parts.length >= 2 && anim.key.includes('attack')) {
+          const animKey = parts.slice(1).join('_');
+          this.processAttackHitbox(enemy, animKey, frame, false);
         }
       });
 
@@ -431,6 +449,10 @@ export default class GameScene extends Phaser.Scene {
     };
 
     this.resuscitatePlayer = () => {
+      if (this.respawnInterval) {
+        clearInterval(this.respawnInterval);
+        this.respawnInterval = null;
+      }
       this.tweens.killTweensOf(this.player); // Stop any active fade-out tweens
       this.player.hp = this.playerMaxHp;
       this.player.alpha = 1;
@@ -453,6 +475,7 @@ export default class GameScene extends Phaser.Scene {
     this.checkPlayerDeath = () => {
       if (!this.isDead) {
         this.isDead = true;
+        this.respawnReady = false;
         this.player.hp = 0;
         this.player.setVelocity(0);
         this.player.body.enable = false;
@@ -460,13 +483,6 @@ export default class GameScene extends Phaser.Scene {
         if (this.anims.exists(`${this.characterKey}_death`)) {
           this.player.play(`${this.characterKey}_death`);
         }
-
-        // Fade out local player sprite
-        this.tweens.add({
-          targets: this.player,
-          alpha: 0,
-          duration: 1000
-        });
 
         // Show Respawn Overlay
         const overlay = document.getElementById('respawn-overlay');
@@ -476,14 +492,24 @@ export default class GameScene extends Phaser.Scene {
           let cooldown = 5;
           timerText.innerText = cooldown;
           
-          const interval = setInterval(() => {
+          if (this.respawnInterval) clearInterval(this.respawnInterval);
+          this.respawnInterval = setInterval(() => {
             cooldown--;
             if (timerText) timerText.innerText = cooldown;
             if (cooldown <= 0) {
-              clearInterval(interval);
-              // Send respawn request to server
+              clearInterval(this.respawnInterval);
+              this.respawnInterval = null;
+              this.respawnReady = true;
+              
               if (multiplayer.room) {
                 multiplayer.room.send("respawn_player");
+                
+                // If the server's HP is ALREADY maxHp (e.g. from an old delayed packet, or heal),
+                // the server won't broadcast an HP change, so we must revive locally right now!
+                const localPlayerState = multiplayer.room.state.players.get(multiplayer.room.sessionId);
+                if (localPlayerState && localPlayerState.hp >= this.playerMaxHp) {
+                  this.resuscitatePlayer();
+                }
               } else {
                 this.resuscitatePlayer();
               }
@@ -565,14 +591,13 @@ export default class GameScene extends Phaser.Scene {
               rpData.hp = playerState.hp;
               if (playerState.hp <= 0) {
                 rSprite.body.enable = false; // Disable body on other clients too
-                if (rSprite.alpha === 1) {
+                if (rSprite.active && rSprite.hp <= 0) {
                   if (this.anims.exists(`${charKey}_death`)) {
                     rSprite.play(`${charKey}_death`, true);
                   }
-                  this.tweens.add({ targets: rSprite, alpha: 0, duration: 1000 });
+                  // No alpha fade, leave body visible
                 }
               } else {
-                this.tweens.killTweensOf(rSprite); // Stop any remote player fade-out tweens
                 rSprite.body.enable = true; // Enable body on respawn
                 rSprite.alpha = 1;
               }
@@ -729,11 +754,16 @@ export default class GameScene extends Phaser.Scene {
             this.playerMaxHp = localPlayerState.maxHp;
           }
           if (localPlayerState.hp !== undefined) {
-            this.player.hp = localPlayerState.hp;
-            if (this.player.hp <= 0 && !this.isDead) {
-              this.checkPlayerDeath();
-            } else if (this.player.hp > 0 && this.isDead) {
-              this.resuscitatePlayer();
+            // Ignore incomplete HP syncs while dead (e.g. late network packets)
+            if (this.isDead && (!this.respawnReady || localPlayerState.hp < this.playerMaxHp)) {
+              // Wait for the full maxHp state from respawn_player AND timer completion
+            } else {
+              this.player.hp = localPlayerState.hp;
+              if (this.player.hp <= 0 && !this.isDead) {
+                this.checkPlayerDeath();
+              } else if (this.player.hp >= this.playerMaxHp && this.isDead && this.respawnReady) {
+                this.resuscitatePlayer();
+              }
             }
           }
         });
@@ -883,50 +913,10 @@ export default class GameScene extends Phaser.Scene {
           });
           
           if (nearestEnemy) {
-            const arrow = this.projectiles.create(this.player.x, this.player.y, 'arrow');
-            arrow.setCircle(10, arrow.width / 2 - 10, arrow.height / 2 - 10);
-            arrow.damage = CHARACTER_CONFIG[this.characterKey].attack;
-            
-            const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, nearestEnemy.x, nearestEnemy.y);
-            arrow.rotation = angle;
-            
-            const speed = 600;
-            arrow.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
-            arrow.setDepth(50);
-            
-            if (multiplayer.room) {
-              multiplayer.room.send("spawn_player_projectile", {
-                x: this.player.x,
-                y: this.player.y,
-                angle: angle,
-                speed: speed,
-                damage: arrow.damage
-              });
-            }
-            
-            this.time.delayedCall(2000, () => {
-              if (arrow && arrow.scene) arrow.destroy();
-            });
+            this.player.targetEnemy = nearestEnemy;
           }
         } else {
-          // Standard Attack logic
-          this.enemies.forEach(enemy => {
-            if (enemy.hp <= 0) return;
-            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-            // Must face the enemy
-            const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
-            if (dist < 45 && isFacingEnemy) {
-              const dmg = CHARACTER_CONFIG[this.characterKey].attack;
-              
-              if (multiplayer.room) {
-                // Just send to server, server broadcasts enemy_hit
-                multiplayer.room.send("damage_enemy", { id: enemy.id, damage: dmg, sourceX: this.player.x, sourceY: this.player.y });
-              } else {
-                this.showFloatingText(enemy.x, enemy.y - 40, `-${dmg}`, '#ffffff');
-                this.damageEnemyLocal(enemy, dmg, this.player.x, this.player.y);
-              }
-            }
-          });
+          // Melee attacks are now handled by animationupdate and processAttackHitbox
         }
       });
     } else if (this.player.hp > 0) {
@@ -1048,84 +1038,7 @@ export default class GameScene extends Phaser.Scene {
           multiplayer.room.send("enemy_attack", { id: enemy.id, anim: attackAnim });
         }
         
-        // Delay attack hit or spawn projectile
-        if (eConfig.attackType === 'ranged') {
-          this.time.delayedCall(300, () => {
-            if (targetPlayer && targetPlayer.active && enemy.hp > 0 && !enemy.isHurt) {
-              const projectile = this.enemyProjectiles.create(enemy.x, enemy.y, 'lunaria_moving');
-              projectile.play('lunaria_moving');
-              projectile.setCircle(15, projectile.width / 2 - 15, projectile.height / 2 - 15);
-              projectile.damage = eConfig.attack;
-              const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, targetPlayer.x, targetPlayer.y);
-              projectile.rotation = angle;
-              const speed = 250;
-              projectile.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
-              
-              if (multiplayer.room) {
-                multiplayer.room.send("spawn_projectile", {
-                  x: enemy.x,
-                  y: enemy.y,
-                  angle: angle,
-                  speed: speed,
-                  damage: eConfig.attack
-                });
-              }
-            }
-          });
-        } else {
-          this.time.delayedCall(300, () => {
-            if (targetPlayer && targetPlayer.active && enemy.hp > 0 && !enemy.isHurt) {
-              const currentDist = Phaser.Math.Distance.Between(targetPlayer.x, targetPlayer.y, enemy.x, enemy.y);
-              if (currentDist < maxAttackRange + 15) {
-                // Check if target is local player
-                if (targetPlayer === this.player) {
-                  const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
-                  if (this.isGuarding && isFacingEnemy) {
-                    // Ignore damage, repel enemy
-                    const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-                    enemy.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);
-                    setTimeout(() => { if (enemy && enemy.hp > 0) enemy.setVelocity(0); }, 150);
-                  } else {
-                    const dmg = eConfig.attack;
-                    
-                    if (multiplayer.room) {
-                      multiplayer.room.send("damage_player", { targetId: multiplayer.room.sessionId, damage: dmg, sourceX: enemy.x, sourceY: enemy.y });
-                    } else {
-                      this.player.hp -= dmg;
-                      this.showFloatingText(this.player.x, this.player.y - 40, `-${dmg}`, '#ff5555');
-                      
-                      this.checkPlayerDeath();
-                      if (this.player.hp > 0) {
-                        this.isHurt = true;
-                        if (this.anims.exists(`${this.characterKey}_hurt`)) {
-                          this.player.play(`${this.characterKey}_hurt`, true);
-                        } else {
-                          this.time.delayedCall(200, () => { this.isHurt = false; });
-                        }
-                        this.isAttacking = false; // Cancel attack if hit
-
-                        // Knockback for player
-                        const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
-                        this.player.setVelocity(Math.cos(angle) * 80, Math.sin(angle) * 80);
-                        setTimeout(() => { if (this.player && this.player.hp > 0 && !this.isDead) this.player.setVelocity(0); }, 150);
-                      }
-                    }
-                  }
-                } else {
-                  // Damage remote player
-                  let targetSessionId = null;
-                  this.remotePlayers.forEach((rp, sessionId) => {
-                    if (rp.sprite === targetPlayer) targetSessionId = sessionId;
-                  });
-                  if (targetSessionId) {
-                    const dmg = eConfig.attack;
-                    multiplayer.room.send("damage_player", { targetId: targetSessionId, damage: dmg, sourceX: enemy.x, sourceY: enemy.y });
-                  }
-                }
-              }
-            }
-          });
-        }
+        enemy.targetEnemy = targetPlayer;
       } else if (dist < 350) {
         // Follow player
         this.physics.moveToObject(enemy, targetPlayer, CHARACTER_CONFIG[enemy.type].speed);
@@ -1139,34 +1052,35 @@ export default class GameScene extends Phaser.Scene {
     });
 
     // --- Update Minimap ---
-    if (this.minimapGraphics) {
-      this.minimapGraphics.clear();
-      
-      const mapX = 20;
-      const mapY = 20;
-      const mapW = 90;
-      const mapH = 90;
+    const minimapEl = document.getElementById('html-minimap');
+    const minimapEntities = document.getElementById('minimap-entities');
+    
+    if (minimapEl && minimapEntities) {
+      minimapEl.style.display = 'block';
+      const mapW = 120; // Match width in CSS
+      const mapH = 90; // Match height in CSS
       const scaleX = mapW / this.WORLD_WIDTH;
       const scaleY = mapH / this.WORLD_HEIGHT;
 
-      // Draw minimap background
-      this.minimapGraphics.fillStyle(0x000000, 0.4);
-      this.minimapGraphics.fillRect(mapX, mapY, mapW, mapH);
-      this.minimapGraphics.lineStyle(2, 0xffffff, 0.3);
-      this.minimapGraphics.strokeRect(mapX, mapY, mapW, mapH);
-
-      // Draw enemies
-      this.minimapGraphics.fillStyle(0xff5555, 1);
+      let html = '';
+      
+      // Enemies
       this.enemies.forEach(e => {
-        if (e.hp > 0) {
-          this.minimapGraphics.fillCircle(mapX + e.x * scaleX, mapY + e.y * scaleY, 2);
+        if (e.active && e.hp > 0) {
+          const ex = e.x * scaleX;
+          const ey = e.y * scaleY;
+          html += `<div class="minimap-dot minimap-enemy" style="left: ${ex}px; top: ${ey}px;"></div>`;
         }
       });
-
-      const minimapPlayerX = mapX + (this.player.x * scaleX);
-      const minimapPlayerY = mapY + (this.player.y * scaleY);
-      this.minimapGraphics.fillStyle(0x00ff00, 1);
-      this.minimapGraphics.fillCircle(minimapPlayerX, minimapPlayerY, 3);
+      
+      // Player
+      if (this.player && this.player.active) {
+        const px = this.player.x * scaleX;
+        const py = this.player.y * scaleY;
+        html += `<div class="minimap-dot minimap-player" style="left: ${px}px; top: ${py}px;"></div>`;
+      }
+      
+      minimapEntities.innerHTML = html;
     }
 
     if (this.rangeIndicator && this.player) {
@@ -1227,7 +1141,7 @@ export default class GameScene extends Phaser.Scene {
 
   showFloatingText(x, y, message, color) {
     const text = this.add.text(x, y, message, {
-      fontSize: '28px',
+      fontSize: '16px',
       fill: color,
       fontFamily: 'Outfit, sans-serif',
       fontStyle: 'bold',
@@ -1270,10 +1184,9 @@ export default class GameScene extends Phaser.Scene {
       this.setupHTMLControls();
     }
 
-    // Minimap Graphics
-    this.minimapGraphics = this.add.graphics();
-    this.minimapGraphics.setScrollFactor(0);
-    this.minimapGraphics.setDepth(99);
+    // ── HTML MINIMAP CLEANUP ──
+    const minimapEl = document.getElementById('html-minimap');
+    if (minimapEl) minimapEl.style.display = 'none';
   }
 
   setupHTMLControls() {
@@ -1342,6 +1255,157 @@ export default class GameScene extends Phaser.Scene {
     
     btnB.addEventListener('touchstart', (e) => { e.preventDefault(); this.isBtnBDown = true; }, { passive: false });
     btnB.addEventListener('touchend', (e) => { e.preventDefault(); this.isBtnBDown = false; });
+  }
+
+  // ── Helper to process frame-specific attack hitbox ──
+  processAttackHitbox(attacker, animKey, frame, isPlayer) {
+    if (!this.cache.json.has('hitbox_config')) return;
+    const hitboxCfg = this.cache.json.get('hitbox_config');
+    const charKey = isPlayer ? this.characterKey : attacker.type;
+    
+    const charHitboxes = hitboxCfg[charKey] || {};
+    const conf = charHitboxes[animKey];
+    if (!conf) return;
+
+    const hitFrame = conf.attackFrame !== undefined ? conf.attackFrame : -1;
+    // frame.index is 1-based in Phaser animations!
+    if (hitFrame === -1 || frame.index !== hitFrame) return;
+
+    if (attacker.hasAttackedThisCycle) return;
+    attacker.hasAttackedThisCycle = true;
+
+    const baseScale = CHARACTER_CONFIG[charKey]?.scale || 1;
+    const extraScale = attacker.extraScale || 1;
+    const totalScale = baseScale * extraScale;
+    
+    const aw = (conf.attackW || 40) * totalScale;
+    const ah = (conf.attackH || 40) * totalScale;
+    let aox = (conf.attackOx || 0) * totalScale;
+    const aoy = (conf.attackOy || 0) * totalScale;
+
+    const frameW = CHARACTER_CONFIG[charKey].frameWidth;
+    const topLeftX = attacker.x - (frameW * totalScale) / 2;
+    const topLeftY = attacker.y - (CHARACTER_CONFIG[charKey].frameHeight * totalScale) / 2;
+
+    let hitboxX;
+    if (attacker.flipX) {
+        hitboxX = topLeftX + (frameW * totalScale) - aox - aw;
+    } else {
+        hitboxX = topLeftX + aox;
+    }
+    const hitboxY = topLeftY + aoy;
+
+    const attackRect = new Phaser.Geom.Rectangle(hitboxX, hitboxY, aw, ah);
+
+    // Debug Hitbox
+    if (this.physics.world.drawDebug) {
+      const gfx = this.add.graphics();
+      gfx.lineStyle(2, 0xff0000);
+      gfx.strokeRect(attackRect.x, attackRect.y, attackRect.width, attackRect.height);
+      this.time.delayedCall(200, () => gfx.destroy());
+    }
+
+    const dmg = CHARACTER_CONFIG[charKey].attack || 10;
+
+    if (CHARACTER_CONFIG[charKey].attackType === 'ranged') {
+      const spawnX = attackRect.x + attackRect.width / 2;
+      const spawnY = attackRect.y + attackRect.height / 2;
+      
+      let targetX = spawnX + (attacker.flipX ? -100 : 100);
+      let targetY = spawnY;
+      
+      if (attacker.targetEnemy && attacker.targetEnemy.active) {
+        targetX = attacker.targetEnemy.x;
+        targetY = attacker.targetEnemy.y;
+      }
+      
+      const angle = Phaser.Math.Angle.Between(spawnX, spawnY, targetX, targetY);
+      
+      if (isPlayer) {
+        const arrow = this.projectiles.create(spawnX, spawnY, 'arrow');
+        arrow.setCircle(10, arrow.width / 2 - 10, arrow.height / 2 - 10);
+        arrow.damage = dmg;
+        arrow.rotation = angle;
+        const speed = 600;
+        arrow.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+        arrow.setDepth(50);
+        if (multiplayer.room) {
+          multiplayer.room.send("spawn_player_projectile", { x: spawnX, y: spawnY, angle: angle, speed: speed, damage: dmg });
+        }
+        this.time.delayedCall(2000, () => { if (arrow && arrow.scene) arrow.destroy(); });
+      } else {
+        const projectile = this.enemyProjectiles.create(spawnX, spawnY, 'lunaria_moving');
+        projectile.play('lunaria_moving');
+        projectile.setCircle(15, projectile.width / 2 - 15, projectile.height / 2 - 15);
+        projectile.damage = dmg;
+        projectile.rotation = angle;
+        const speed = 250;
+        projectile.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+        if (multiplayer.room) {
+          multiplayer.room.send("spawn_projectile", { x: spawnX, y: spawnY, angle: angle, speed: speed, damage: dmg });
+        }
+        this.time.delayedCall(3000, () => { if (projectile && projectile.scene) projectile.destroy(); });
+      }
+      return;
+    }
+
+    if (isPlayer) {
+      // Player attacks enemies
+      this.enemies.forEach(enemy => {
+        if (enemy.hp <= 0) return;
+        const enemyRect = enemy.body ? new Phaser.Geom.Rectangle(enemy.body.x, enemy.body.y, enemy.body.width, enemy.body.height) : enemy.getBounds();
+        if (Phaser.Geom.Intersects.RectangleToRectangle(attackRect, enemyRect)) {
+          if (!attacker.hitTargets) attacker.hitTargets = new Set();
+          if (attacker.hitTargets.has(enemy)) return;
+          attacker.hitTargets.add(enemy);
+
+          if (multiplayer.room) {
+            multiplayer.room.send("damage_enemy", { id: enemy.id, damage: dmg, sourceX: attacker.x, sourceY: attacker.y });
+          } else {
+            this.showFloatingText(enemy.x, enemy.y - 40, `-${dmg}`, '#ffffff');
+            this.damageEnemyLocal(enemy, dmg, attacker.x, attacker.y);
+          }
+        }
+      });
+    } else {
+      // Enemy attacks player
+      if (this.player.hp > 0 && !this.player.isHurt) {
+        const playerRect = this.player.body ? new Phaser.Geom.Rectangle(this.player.body.x, this.player.body.y, this.player.body.width, this.player.body.height) : this.player.getBounds();
+        if (Phaser.Geom.Intersects.RectangleToRectangle(attackRect, playerRect)) {
+          if (!attacker.hitTargets) attacker.hitTargets = new Set();
+          if (attacker.hitTargets.has(this.player)) return;
+          attacker.hitTargets.add(this.player);
+
+          const isFacingEnemy = (this.player.flipX && attacker.x < this.player.x) || (!this.player.flipX && attacker.x > this.player.x);
+          if (this.isGuarding && isFacingEnemy) {
+            const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, attacker.x, attacker.y);
+            attacker.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);
+            setTimeout(() => { if (attacker && attacker.hp > 0) attacker.setVelocity(0); }, 150);
+            return;
+          }
+
+          if (multiplayer.room) {
+            multiplayer.room.send("damage_player", { targetId: multiplayer.room.sessionId, damage: dmg, sourceX: attacker.x, sourceY: attacker.y });
+          } else {
+            this.player.hp -= dmg;
+            this.showFloatingText(this.player.x, this.player.y - 40, `-${dmg}`, '#ff0000');
+            this.checkPlayerDeath();
+            if (this.player.hp > 0) {
+              this.isHurt = true;
+              if (this.anims.exists(`${this.characterKey}_hurt`)) {
+                this.player.play(`${this.characterKey}_hurt`, true);
+              } else {
+                this.time.delayedCall(200, () => { this.isHurt = false; });
+              }
+              this.isAttacking = false;
+              const angle = Phaser.Math.Angle.Between(attacker.x, attacker.y, this.player.x, this.player.y);
+              this.player.setVelocity(Math.cos(angle) * 80, Math.sin(angle) * 80);
+              setTimeout(() => { if (this.player && this.player.hp > 0 && !this.isDead) this.player.setVelocity(0); }, 150);
+            }
+          }
+        }
+      }
+    }
   }
 
   // ── Helper to update hitbox dynamically based on character and animation ──
