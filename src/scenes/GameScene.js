@@ -408,7 +408,6 @@ export default class GameScene extends Phaser.Scene {
     // Note: We've simplified the wave config by removing hardcoded bounding boxes (ox, oy, w, h)
     // because those are now dynamically handled in spawnEnemy via the character configuration!
     this.waves = [
-      [{ type: 'lunaria', x: 500, y: 400, scale: 1 }],
       // Wave 1
       [{ type: 'slime', x: 300, y: 400 }],
       // Wave 2
@@ -416,13 +415,16 @@ export default class GameScene extends Phaser.Scene {
       // Wave 3
       [
         { type: 'demon', x: 400, y: 300 },
+        { type: 'slime', x: 300, y: 500 },
+        { type: 'slime', x: 300, y: 500 },
         { type: 'slime', x: 300, y: 500 }
       ],
       // Wave 4: Orc
-      [{ type: 'orc', x: 400, y: 500 }],
+      [{ type: 'orc', x: 400, y: 500 }, { type: 'blood', x: 500, y: 400 }, { type: 'blood', x: 500, y: 400 }],
       // Wave 5: Kaizer (Boss)
-      [{ type: 'kaizer', x: 400, y: 400, hpOverride: 500, scale: 1.5 }]
+      [{ type: 'kaizer', x: 400, y: 400, hpOverride: 500, scale: 1.5 }, { type: 'blood', x: 500, y: 400 }, { type: 'orc', x: 400, y: 500 }],
       // Wave 6: Lunaria (Ranged Boss)
+      [{ type: 'lunaria', x: 500, y: 400, scale: 1 }]
     ];
     this.currentWaveIndex = 0;
     
