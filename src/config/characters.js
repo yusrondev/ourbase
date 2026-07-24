@@ -57,7 +57,7 @@ export const CHARACTER_CONFIG = {
     }
   },
   slime: {
-    name: 'Slime',
+    name: 'Slimo',
     folder: 'slime',
     frameWidth: 96,
     frameHeight: 96,

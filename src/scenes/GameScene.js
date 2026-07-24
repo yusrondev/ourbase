@@ -8,7 +8,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   init(data) {
-    this.characterKey = data.character || 'human'; // 'human' or 'soldier2'
+    this.cleanUpHtmlTags();
+    this.characterKey = data.character || 'lucien'; // 'human' or 'soldier2'
   }
 
   preload() {
@@ -163,11 +164,7 @@ export default class GameScene extends Phaser.Scene {
     this.damageEnemyLocal = (enemy, dmg, sourceX, sourceY) => {
       enemy.hp -= dmg;
       if (enemy.hp <= 0) {
-        enemy.hpBar.clear();
-        if (enemy.nameTag) {
-          enemy.nameTag.destroy();
-          enemy.nameTag = null;
-        }
+        if (enemy.uiContainer) enemy.uiContainer.remove();
         enemy.setVelocity(0);
         enemy.body.enable = false;
         if (this.anims.exists(`${enemy.type}_death`)) {
@@ -199,8 +196,6 @@ export default class GameScene extends Phaser.Scene {
         setTimeout(() => { if (enemy && enemy.hp > 0) enemy.setVelocity(0); }, 150);
       }
     };
-
-    // (Duplicate projectile overlap block removed)
 
     // Create Player based on selection (Spawn at designated spawn point if any)
     const playerConfig = CHARACTER_CONFIG[this.characterKey];
@@ -264,9 +259,14 @@ export default class GameScene extends Phaser.Scene {
       this.rangeIndicator.lineStyle(2, 0x4ade80, 0.3); // Green circle
       this.rangeIndicator.strokeCircle(0, 0, this.rangeRadius);
     }
-    this.playerHpBar = this.add.graphics();
-    this.playerHpBar.setDepth(200);
-    
+    // HTML Entity UI for own player (Name + HP Bar)
+    let myName = 'Player';
+    if (multiplayer.room) {
+      const myPlayerState = multiplayer.room.state.players.get(multiplayer.room.sessionId);
+      if (myPlayerState && myPlayerState.name) myName = myPlayerState.name;
+    }
+    this.playerUI = this.createHtmlEntityUI(myName, 'own', 50);
+
     // Handle enemy projectiles hitting player
     this.physics.add.overlap(this.enemyProjectiles, this.player, (player, projectile) => {
       if (this.isDead || player.hp <= 0) return;
@@ -374,14 +374,9 @@ export default class GameScene extends Phaser.Scene {
       enemy.maxHp = hp;
       enemy.type = type;
       enemy.id = id || `enemy_${++enemyIdCounter}_${Date.now()}`;
-      enemy.hpBar = this.add.graphics();
-      enemy.nameTag = this.add.text(0, 0, CHARACTER_CONFIG[type].name, {
-        fontSize: '12px',
-        fill: '#ffcccc',
-        fontFamily: 'Outfit, sans-serif',
-        stroke: '#000000',
-        strokeThickness: 3
-      }).setOrigin(0.5).setDepth(200);
+      
+      enemy.uiContainer = this.createHtmlEntityUI(CHARACTER_CONFIG[type].name, 'enemy', 30);
+      
       enemy.isAttacking = false;
       enemy.isHurt = false;
       
@@ -594,18 +589,12 @@ export default class GameScene extends Phaser.Scene {
           );
           rSprite.play(`${charKey}_idle`);
           
-          // Name tag
-          const nameTag = this.add.text(0, 0, playerState.name || 'Player', {
-            fontSize: '14px', fill: '#ffffff', backgroundColor: '#00000088'
-          }).setOrigin(0.5).setDepth(200);
-
-          const hpBar = this.add.graphics();
-          hpBar.setDepth(200);
+          // HTML UI for Remote Player
+          const uiContainer = this.createHtmlEntityUI(playerState.name || 'Player', 'remote', 40);
 
           const rpData = { 
             sprite: rSprite, 
-            nameTag, 
-            hpBar,
+            uiContainer, 
             charKey, 
             targetX: playerState.x || rSprite.x, 
             targetY: playerState.y || rSprite.y,
@@ -667,8 +656,7 @@ export default class GameScene extends Phaser.Scene {
         const rp = this.remotePlayers.get(sessionId);
         if (rp) {
           if (rp.sprite) rp.sprite.destroy();
-          if (rp.nameTag) rp.nameTag.destroy();
-          if (rp.hpBar) rp.hpBar.destroy();
+          if (rp.uiContainer) rp.uiContainer.remove();
           this.remotePlayers.delete(sessionId);
         }
       });
@@ -896,9 +884,12 @@ export default class GameScene extends Phaser.Scene {
         this.createCustomProjectileAnims(hitboxCfg);
       }
     }
+    this.events.once('shutdown', () => {
+      this.cleanUpHtmlTags();
+    });
   }
 
-  update() {
+  update(time, delta) {
     if (this.isGameOver) return;
 
     // Clean up dead enemies from logic array
@@ -915,11 +906,15 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // Draw Player HP Bar
+    // Update Player UI (Name + HP Bar)
     if (this.player.hp > 0) {
-      this.drawHealthBar(this.playerHpBar, this.player.x - 20, this.player.y - 35, 40, 5, this.player.hp, this.playerMaxHp, 0x4ade80);
+      if (this.playerUI) {
+        this.updateHtmlEntityUI(this.playerUI, this.player.x, this.player.y, -30, this.player.hp, this.playerMaxHp);
+      }
     } else {
-      this.playerHpBar.clear();
+      if (this.playerUI) {
+        this.playerUI.style.display = 'none';
+      }
     }
 
     this.isGuarding = false;
@@ -1106,11 +1101,9 @@ export default class GameScene extends Phaser.Scene {
     this.enemies.forEach(enemy => {
       if (enemy.hp <= 0) return;
 
-      // Draw HP Bar
-      this.drawHealthBar(enemy.hpBar, enemy.x - 15, enemy.y - 25, 30, 4, enemy.hp, enemy.maxHp, 0xf87171);
-      
-      if (enemy.nameTag) {
-        enemy.nameTag.setPosition(enemy.x, enemy.y - 35);
+      // Update Enemy UI
+      if (enemy.uiContainer) {
+        this.updateHtmlEntityUI(enemy.uiContainer, enemy.x, enemy.y, -25, enemy.hp, enemy.maxHp);
       }
 
       if (multiplayer.room && !multiplayer.isHost) {
@@ -1234,15 +1227,8 @@ export default class GameScene extends Phaser.Scene {
         if (rp.sprite && rp.sprite.active) {
           rp.sprite.x += (rp.targetX - rp.sprite.x) * 0.15;
           rp.sprite.y += (rp.targetY - rp.sprite.y) * 0.15;
-          if (rp.nameTag) {
-            rp.nameTag.setPosition(rp.sprite.x, rp.sprite.y - 45);
-          }
-          if (rp.hpBar) {
-            if (rp.hp > 0) {
-              this.drawHealthBar(rp.hpBar, rp.sprite.x - 20, rp.sprite.y - 35, 40, 5, rp.hp, rp.maxHp, 0x4ade80);
-            } else {
-              rp.hpBar.clear();
-            }
+          if (rp.uiContainer) {
+            this.updateHtmlEntityUI(rp.uiContainer, rp.sprite.x, rp.sprite.y, -18, rp.hp, rp.maxHp);
           }
         }
       });
@@ -1651,4 +1637,66 @@ export default class GameScene extends Phaser.Scene {
       });
     });
   }
+
+  // --- HTML Entity UI Helpers (Name + HP Bar) ---
+  createHtmlEntityUI(name, type, hpWidth = 40) {
+    const container = document.createElement('div');
+    container.className = 'entity-ui-container';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = `entity-name ${type}`;
+    nameEl.innerText = name;
+    
+    const hpBg = document.createElement('div');
+    hpBg.className = 'entity-hp-bg';
+    hpBg.style.width = `${hpWidth}px`;
+    
+    const hpFill = document.createElement('div');
+    hpFill.className = `entity-hp-fill ${type}`;
+    hpBg.appendChild(hpFill);
+    
+    container.appendChild(nameEl);
+    container.appendChild(hpBg);
+    
+    container.hpFill = hpFill; // attach for easy access
+    
+    const mainContainer = document.getElementById('html-name-tags');
+    if (mainContainer) {
+      mainContainer.appendChild(container);
+    }
+    return container;
+  }
+
+  updateHtmlEntityUI(container, worldX, worldY, offsetY, hp, maxHp) {
+    if (!container) return;
+    const cam = this.cameras.main;
+    // Calculate position relative to camera view, accounting for zoom center
+    const cx = cam.width / 2;
+    const cy = cam.height / 2;
+    
+    const screenX = (worldX - (cam.scrollX + cx)) * cam.zoom + cx;
+    const screenY = ((worldY + offsetY) - (cam.scrollY + cy)) * cam.zoom + cy;
+    
+    // Hide if out of bounds (optimization)
+    if (screenX < -50 || screenX > cam.width + 50 || screenY < -50 || screenY > cam.height + 50) {
+      container.style.display = 'none';
+    } else {
+      container.style.display = 'flex';
+      container.style.left = `${screenX}px`;
+      container.style.top = `${screenY}px`;
+      
+      if (container.hpFill) {
+        const pct = Math.max(0, Math.min(1, hp / maxHp)) * 100;
+        container.hpFill.style.width = `${pct}%`;
+      }
+    }
+  }
+
+  cleanUpHtmlTags() {
+    const container = document.getElementById('html-name-tags');
+    if (container) {
+      container.innerHTML = '';
+    }
+  }
 }
+

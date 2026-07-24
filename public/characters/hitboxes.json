@@ -106,5 +106,158 @@
       "attackOy": 0,
       "attackFrame": 1
     }
+  },
+  "blood": {
+    "stats": {
+      "hp": 80,
+      "attack": 15,
+      "speed": 100,
+      "attackType": "melee",
+      "attackRange": 0
+    },
+    "attack": {
+      "bodyW": 15,
+      "bodyH": 20,
+      "offsetX": 42.5,
+      "offsetY": 40,
+      "attackW": 11.5,
+      "attackH": 30,
+      "attackOx": 60.49999999999999,
+      "attackOy": 30.333333333333332,
+      "attackFrame": 5
+    }
+  },
+  "slime": {
+    "stats": {
+      "hp": 50,
+      "attack": 10,
+      "speed": 80,
+      "attackType": "melee",
+      "attackRange": 0
+    },
+    "attack": {
+      "bodyW": 15,
+      "bodyH": 20,
+      "offsetX": 40.5,
+      "offsetY": 38,
+      "attackW": 32,
+      "attackH": 6.666666666666664,
+      "attackOx": 47.83333333333333,
+      "attackOy": 48.00000000000001,
+      "attackFrame": 5
+    }
+  },
+  "demon": {
+    "stats": {
+      "hp": 120,
+      "attack": 25,
+      "speed": 90,
+      "attackType": "melee",
+      "attackRange": 0
+    },
+    "attack": {
+      "bodyW": 15,
+      "bodyH": 20,
+      "offsetX": 42.5,
+      "offsetY": 40,
+      "attackW": 19.666666666666668,
+      "attackH": 5,
+      "attackOx": 59.16666666666667,
+      "attackOy": 50.50000000000001,
+      "attackFrame": 6
+    }
+  },
+  "kaizer": {
+    "stats": {
+      "hp": 250,
+      "attack": 30,
+      "speed": 120,
+      "attackType": "melee",
+      "attackRange": 0
+    },
+    "idle": {
+      "bodyW": 30,
+      "bodyH": 40,
+      "offsetX": 110,
+      "offsetY": 105,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    }
+  },
+  "orc": {
+    "stats": {
+      "hp": 150,
+      "attack": 30,
+      "speed": 70,
+      "attackType": "melee",
+      "attackRange": 0
+    },
+    "attack": {
+      "bodyW": 15,
+      "bodyH": 20,
+      "offsetX": 42.5,
+      "offsetY": 40,
+      "attackW": 14.333333333333332,
+      "attackH": 13.333333333333334,
+      "attackOx": 61.5,
+      "attackOy": 48.166666666666664,
+      "attackFrame": 4
+    }
+  },
+  "shifu": {
+    "stats": {
+      "hp": 100,
+      "attack": 25,
+      "speed": 180,
+      "attackType": "melee",
+      "attackRange": 0
+    },
+    "attack": {
+      "bodyW": 37.5,
+      "bodyH": 50,
+      "offsetX": 81.25,
+      "offsetY": 75,
+      "attackW": 96.66666666666666,
+      "attackH": 66.25,
+      "attackOx": 92.91666666666666,
+      "attackOy": 52.49999999999999,
+      "attackFrame": 5
+    },
+    "attack2": {
+      "bodyW": 37.5,
+      "bodyH": 50,
+      "offsetX": 81.25,
+      "offsetY": 75,
+      "attackW": 109.99999999999999,
+      "attackH": 48.33333333333333,
+      "attackOx": 84.16666666666666,
+      "attackOy": 69.58333333333333,
+      "attackFrame": 5
+    },
+    "idle": {
+      "bodyW": 10.416666666666671,
+      "bodyH": 23.333333333333336,
+      "offsetX": 96.66666666666666,
+      "offsetY": 98.75,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    },
+    "walk": {
+      "bodyW": 10.416666666666671,
+      "bodyH": 23.333333333333336,
+      "offsetX": 96.66666666666666,
+      "offsetY": 98.75,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    }
   }
 }
