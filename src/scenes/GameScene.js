@@ -300,6 +300,7 @@ export default class GameScene extends Phaser.Scene {
       }
       
       // Explosion effect if configured
+      // Play explosion effect if projConfig has an explodePath configured
       if (projectile.projConfig && projectile.projConfig.explodePath) {
         const explKey = projectile.projConfig.texture + '_explode';
         if (this.anims.exists(explKey)) {
@@ -307,15 +308,6 @@ export default class GameScene extends Phaser.Scene {
           if (anim && anim.frames && anim.frames.length > 0) {
             const explode = this.add.sprite(projectile.x, projectile.y, explKey);
             explode.play(explKey);
-            explode.on('animationcomplete', () => explode.destroy());
-          }
-        }
-      } else {
-        if (this.anims.exists('lunaria_explode')) {
-          const anim = this.anims.get('lunaria_explode');
-          if (anim && anim.frames && anim.frames.length > 0) {
-            const explode = this.add.sprite(projectile.x, projectile.y, 'lunaria_explode');
-            explode.play('lunaria_explode');
             explode.on('animationcomplete', () => explode.destroy());
           }
         }
