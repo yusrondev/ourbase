@@ -39,40 +39,46 @@ const game = new Phaser.Game(config);
 
 // --- Hero Selection Logic ---
 let activeHeroKey = 'lucien';
+let mySelectedCharKey = 'lucien'; // Local override for instant avatar update
 const selectableHeroKeys = Object.keys(CHARACTER_CONFIG).filter(key => CHARACTER_CONFIG[key].role);
 
 function updateHeroDetails(key) {
   const config = CHARACTER_CONFIG[key];
   if (!config) return;
 
-  document.getElementById('detail-name').innerText = config.name;
-  document.getElementById('detail-role').innerText = config.role;
-  document.getElementById('detail-desc').innerText = config.description;
+  const detailName = document.getElementById('detail-name');
+  const detailRole = document.getElementById('detail-role');
+  if (detailName) detailName.innerText = config.name;
+  if (detailRole) detailRole.innerText = config.role || '';
 
   // Max bounds for calculating progress bar percentages
-  const maxHP = 200;
-  const maxATK = 35;
-  const maxSPD = 200;
+  const maxHP = 300;
+  const maxATK = 50;
+  const maxSPD = 250;
 
   const hpPct = Math.min(100, (config.hp / maxHP) * 100);
   const atkPct = Math.min(100, (config.attack / maxATK) * 100);
   const spdPct = Math.min(100, (config.speed / maxSPD) * 100);
 
-  document.getElementById('bar-hp').style.width = `${hpPct}%`;
-  document.getElementById('bar-atk').style.width = `${atkPct}%`;
-  document.getElementById('bar-spd').style.width = `${spdPct}%`;
+  const barHp = document.getElementById('bar-hp');
+  const barAtk = document.getElementById('bar-atk');
+  const barSpd = document.getElementById('bar-spd');
+  if (barHp) barHp.style.width = `${hpPct}%`;
+  if (barAtk) barAtk.style.width = `${atkPct}%`;
+  if (barSpd) barSpd.style.width = `${spdPct}%`;
 
-  document.getElementById('txt-hp').innerText = config.hp;
-  document.getElementById('txt-atk').innerText = config.attack;
-  document.getElementById('txt-spd').innerText = config.speed;
+  const txtHp = document.getElementById('txt-hp');
+  const txtAtk = document.getElementById('txt-atk');
+  const txtSpd = document.getElementById('txt-spd');
+  if (txtHp) txtHp.innerText = config.hp;
+  if (txtAtk) txtAtk.innerText = config.attack;
+  if (txtSpd) txtSpd.innerText = config.speed;
 
   // Hide ATK row for Monk since they are a support/healer class
-  if (key === 'monk') {
-    document.getElementById('row-atk').style.display = 'none';
-  } else {
-    document.getElementById('row-atk').style.display = 'flex';
-  }
+  const rowAtk = document.getElementById('row-atk');
+  if (rowAtk) rowAtk.style.display = key === 'monk' ? 'none' : 'flex';
 }
+
 
 function renderHeroGrid(roleFilter = 'all') {
   const grid = document.getElementById('hero-grid');
@@ -86,16 +92,9 @@ function renderHeroGrid(roleFilter = 'all') {
     card.className = `hero-card ${key === activeHeroKey ? 'active' : ''}`;
     card.setAttribute('data-key', key);
 
-    const idleFrames = config.animations.idle.frames;
-    
-    // Create face icon
     const avatar = document.createElement('div');
     avatar.className = 'hero-avatar';
-    avatar.style.width = '48px';
-    avatar.style.height = '48px';
     avatar.style.backgroundImage = `url('/characters/${config.folder}/face.png')`;
-    avatar.style.backgroundSize = 'cover';
-    avatar.style.backgroundPosition = 'center';
 
     const nameLabel = document.createElement('div');
     nameLabel.className = 'hero-name-label';
@@ -105,17 +104,16 @@ function renderHeroGrid(roleFilter = 'all') {
     card.appendChild(nameLabel);
 
     card.addEventListener('click', () => {
-      // Remove active classes
       document.querySelectorAll('.hero-card').forEach(c => c.classList.remove('active'));
       card.classList.add('active');
-      
       activeHeroKey = key;
+      mySelectedCharKey = key; // Update local tracking immediately
       updateHeroDetails(key);
-
-      // Trigger Phaser preview change
       if (typeof window.selectCharacter === 'function') {
         window.selectCharacter(key);
       }
+      // Re-render player list so avatar updates instantly
+      renderPlayerList();
     });
 
     grid.appendChild(card);
@@ -154,24 +152,48 @@ function renderPlayerList() {
     const pName = p.name || 'Player';
     const isMe = p.id === multiplayer.room.sessionId;
     const isHost = p.isHost;
+    // Use local tracking for own character (instant update), server state for others
+    const charKey = isMe ? mySelectedCharKey : (p.character || null);
+    const charConfig = charKey ? CHARACTER_CONFIG[charKey] : null;
     
     const item = document.createElement('div');
-    item.className = 'lobby-player-item';
+    item.className = `dp-player-item${isMe ? ' is-me' : ''}`;
     
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'lobby-player-name';
-    nameSpan.innerText = `👤 ${pName}${isMe ? ' (You)' : ''}`;
-    
-    item.appendChild(nameSpan);
-    
-    if (isHost) {
-      const hostBadge = document.createElement('span');
-      hostBadge.className = 'lobby-host-badge';
-      hostBadge.innerText = 'HOST';
-      item.appendChild(hostBadge);
+    // Avatar (character face or placeholder)
+    const avatarEl = document.createElement('div');
+    avatarEl.className = 'dp-player-avatar';
+    if (charConfig) {
+      avatarEl.style.backgroundImage = `url('/characters/${charConfig.folder}/face.png')`;
+    } else {
+      avatarEl.textContent = '?';
     }
     
+    // Name + char name grouped in info div
+    const infoEl = document.createElement('div');
+    infoEl.className = 'dp-player-info';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'dp-player-name';
+    nameEl.textContent = pName;
+    
+    const charNameEl = document.createElement('div');
+    charNameEl.className = 'dp-player-char-name';
+    charNameEl.textContent = charConfig ? charConfig.name : 'Picking...';
+
+    infoEl.appendChild(nameEl);
+    infoEl.appendChild(charNameEl);
+    
+    if (isHost) {
+      const crownEl = document.createElement('span');
+      crownEl.className = 'dp-host-crown';
+      crownEl.textContent = '👑';
+      item.appendChild(crownEl);
+    }
+    
+    item.appendChild(avatarEl);
+    item.appendChild(infoEl);
     listContainer.appendChild(item);
+
   });
 }
 

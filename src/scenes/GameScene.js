@@ -287,6 +287,12 @@ export default class GameScene extends Phaser.Scene {
           player.hp -= dmg;
           this.showFloatingText(player.x, player.y - 40, `-${dmg}`, '#ff0000');
           
+          // Dramatic camera shake + zoom-out on damage
+          this.cameras.main.shake(180, 0.008);
+          if (this._camZoomTarget !== undefined) {
+            this._camZoomTarget = this._camZoomBase - 0.07;
+          }
+          
           if (player.hp > 0) {
             player.isHurt = true;
             player.play(`${this.characterKey}_hurt`, true);
@@ -316,7 +322,15 @@ export default class GameScene extends Phaser.Scene {
     });
     
     // 2. Camera Follows Player
-    this.cameras.main.startFollow(this.player, true, 0.05, 0.05);
+    // 2. Smooth dramatic camera follow
+    this.cameras.main.startFollow(this.player, true, 0.08, 0.08);
+    this.cameras.main.setZoom(1.15);
+    this.cameras.main.setDeadzone(30, 20);
+
+    // Camera state
+    // this._camZoomBase = 1.15;
+    // this._camZoomCurrent = 1.15;
+    // this._camZoomTarget = 1.15;
 
     // Create Enemies helper
     let enemyIdCounter = 0;
@@ -910,6 +924,18 @@ export default class GameScene extends Phaser.Scene {
 
     this.isGuarding = false;
 
+    // ── Smooth dramatic camera zoom lerp ──────────────────────────────
+    if (this._camZoomCurrent !== undefined) {
+      this._camZoomCurrent = Phaser.Math.Linear(this._camZoomCurrent, this._camZoomTarget, 0.07);
+      this.cameras.main.setZoom(this._camZoomCurrent);
+      // Slowly return to base zoom
+      if (Math.abs(this._camZoomTarget - this._camZoomBase) > 0.005) {
+        this._camZoomTarget = Phaser.Math.Linear(this._camZoomTarget, this._camZoomBase, 0.04);
+      } else {
+        this._camZoomTarget = this._camZoomBase;
+      }
+    }
+
     let isActionTriggered = Phaser.Input.Keyboard.JustDown(this.spaceBar) || this.virtualActionTriggered;
     if (this.virtualActionTriggered) this.virtualActionTriggered = false;
     
@@ -959,6 +985,11 @@ export default class GameScene extends Phaser.Scene {
       }
       this.player.play(`${this.characterKey}_${actionName}`, true);
       this.player.setVelocity(0);
+      
+      // Dramatic zoom-in punch on attack
+      if (this._camZoomTarget !== undefined) {
+        this._camZoomTarget = this._camZoomBase + 0.06;
+      }
       
       // Delay effect execution
       this.time.delayedCall(350, () => {

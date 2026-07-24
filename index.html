@@ -27,75 +27,61 @@
     </div>
     
     <div id="selection-screen" style="display: none;">
-      <!-- Top Right Room Code -->
-      <div class="top-right-room-code">
-        <span id="lobby-room-id" style="font-weight: bold; color: #4ade80;">----</span>
+      <!-- DRAFT PICK LAYOUT -->
+
+      <!-- LEFT: Player List -->
+      <div class="dp-left">
+        <div class="dp-room-code">ROOM <span id="lobby-room-id">----</span></div>
+        <div class="dp-player-label">PLAYERS</div>
+        <div id="lobby-player-list" class="dp-player-list">
+          <!-- populated by JS -->
+        </div>
       </div>
 
-      <!-- Sisi Kiri dibuat transparan agar Phaser Preview terlihat -->
-      <div class="selection-preview-area">
-        <div class="hero-stats">
-          <div class="stat-row">
-            <span class="stat-label">HP</span>
-            <div class="stat-bar-container"><div id="bar-hp" class="stat-bar" style="width: 60%;"></div></div>
-            <span id="txt-hp" class="stat-val">120</span>
+      <!-- CENTER: Phaser Preview + Stats -->
+      <div class="dp-center">
+        <!-- Phaser canvas is behind this div -->
+        <div class="dp-hero-info">
+          <div class="dp-hero-name-row">
+            <span id="detail-name">-</span>
+            <span id="detail-role" class="dp-role-badge">-</span>
           </div>
-          <div class="stat-row" id="row-atk">
-            <span class="stat-label">ATK</span>
-            <div class="stat-bar-container"><div id="bar-atk" class="stat-bar" style="width: 50%;"></div></div>
-            <span id="txt-atk" class="stat-val">20</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">SPD</span>
-            <div class="stat-bar-container"><div id="bar-spd" class="stat-bar" style="width: 75%;"></div></div>
-            <span id="txt-spd" class="stat-val">150</span>
+          <div class="dp-stats">
+            <div class="dp-stat-row">
+              <span class="dp-stat-label">HP</span>
+              <div class="dp-bar-bg"><div id="bar-hp" class="dp-bar dp-bar-hp"></div></div>
+              <span id="txt-hp" class="dp-stat-val">-</span>
+            </div>
+            <div class="dp-stat-row" id="row-atk">
+              <span class="dp-stat-label">ATK</span>
+              <div class="dp-bar-bg"><div id="bar-atk" class="dp-bar dp-bar-atk"></div></div>
+              <span id="txt-atk" class="dp-stat-val">-</span>
+            </div>
+            <div class="dp-stat-row">
+              <span class="dp-stat-label">SPD</span>
+              <div class="dp-bar-bg"><div id="bar-spd" class="dp-bar dp-bar-spd"></div></div>
+              <span id="txt-spd" class="dp-stat-val">-</span>
+            </div>
           </div>
         </div>
+        <button id="select-hero-btn" class="dp-confirm-btn">CONFIRM</button>
       </div>
-      
-      <!-- Sisi Rapat berisi info & grid hero -->
-      <div class="selection-panel-area">
-        <div class="selection-header">
-          <h2>PILIH HERO</h2>
-          <div class="role-tabs">
-            <button class="role-tab active" data-role="all">Semua</button>
-            <button class="role-tab" data-role="Tank">Tank</button>
-            <button class="role-tab" data-role="Fighter">Fighter</button>
-            <button class="role-tab" data-role="Assassin">Assassin</button>
-            <button class="role-tab" data-role="Marksman">Marksman</button>
-            <button class="role-tab" data-role="Support">Support</button>
-          </div>
+
+      <!-- RIGHT: Role Tabs + Hero Grid -->
+      <div class="dp-right">
+        <div class="dp-role-tabs">
+          <button class="role-tab active" data-role="all">All</button>
+          <button class="role-tab" data-role="Tank">Tank</button>
+          <button class="role-tab" data-role="Fighter">Fighter</button>
+          <button class="role-tab" data-role="Assassin">Assassin</button>
+          <button class="role-tab" data-role="Marksman">Marksman</button>
+          <button class="role-tab" data-role="Mage">Mage</button>
+          <button class="role-tab" data-role="Support">Support</button>
         </div>
-        
-        <div class="selection-body">
-          <div class="left-panel-column">
-            <div class="hero-details">
-              <div class="hero-details-header">
-                <h3 id="detail-name">Darius</h3>
-                <span id="detail-role" class="hero-role-badge">Fighter</span>
-              </div>
-              <p id="detail-desc" class="hero-desc">Pejuang garis depan bersenjata pedang besar.</p>
-            </div>
-            
-            <div class="lobby-info-box">
-              <div class="lobby-players">
-                <span class="lobby-label">PLAYERS IN LOBBY</span>
-                <div id="lobby-player-list" class="lobby-player-list">
-                  <!-- Will be populated dynamically -->
-                </div>
-              </div>
-            </div>
+        <div class="dp-grid-scroll">
+          <div id="hero-grid" class="dp-hero-grid">
+            <!-- populated by JS -->
           </div>
-          
-          <div class="hero-grid-container">
-            <div id="hero-grid" class="hero-grid">
-              <!-- Grid items will be dynamically generated by JS -->
-            </div>
-          </div>
-        </div>
-        
-        <div class="selection-footer">
-          <button id="select-hero-btn">MULAI GAME</button>
         </div>
       </div>
     </div>
