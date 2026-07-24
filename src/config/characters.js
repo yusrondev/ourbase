@@ -148,7 +148,7 @@ export const CHARACTER_CONFIG = {
     frameWidth: 140,
     frameHeight: 140,
     hp: 180,
-    attack: 35,
+    attack: 1,
     speed: 90,
     scale: 1,
     attackType: 'ranged',

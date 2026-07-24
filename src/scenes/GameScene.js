@@ -24,9 +24,26 @@ export default class GameScene extends Phaser.Scene {
     // Load arrow for ranged attacks (now from lyra)
     this.load.image('arrow', '/characters/lyra/arrow.png');
     
-    // Load lunaria projectiles
-    this.load.spritesheet('lunaria_explode', '/characters/lunaria/projectile/explode.png', { frameWidth: 50, frameHeight: 50 });
-    this.load.spritesheet('lunaria_moving', '/characters/lunaria/projectile/moving.png', { frameWidth: 50, frameHeight: 50 });
+    // Dynamically load projectiles defined in hitboxes.json
+    this.load.once('filecomplete-json-hitbox_config', (key, type, data) => {
+      for (const charKey in data) {
+        for (const animKey in data[charKey]) {
+          const proj = data[charKey][animKey].proj;
+          if (proj && proj.enabled) {
+            const getPath = (p) => p.startsWith('/public') ? p.replace('/public', '') : p;
+            if (proj.animated && proj.path) {
+              this.load.spritesheet(proj.texture + '_moving', getPath(proj.path), { frameWidth: proj.fw, frameHeight: proj.fh });
+            } else if (proj.path) {
+              this.load.image(proj.texture, getPath(proj.path));
+            }
+            if (proj.explodePath) {
+              this.load.spritesheet(proj.texture + '_explode', getPath(proj.explodePath), { frameWidth: proj.efw, frameHeight: proj.efh });
+            }
+          }
+        }
+      }
+    });
+
   }
 
   create() {
@@ -94,24 +111,53 @@ export default class GameScene extends Phaser.Scene {
         this.damageEnemyLocal(enemy, dmg, this.player.x, this.player.y);
       }
       
+      // Explosion effect if configured
+      if (arrow.projConfig && arrow.projConfig.explodePath) {
+        const explKey = arrow.projConfig.texture + '_explode';
+        if (this.anims.exists(explKey)) {
+          const anim = this.anims.get(explKey);
+          if (anim && anim.frames && anim.frames.length > 0) {
+            const explode = this.add.sprite(arrow.x, arrow.y, explKey);
+            explode.play(explKey);
+            explode.on('animationcomplete', () => explode.destroy());
+          }
+        }
+      }
+      
       arrow.destroy();
     });
 
-    // Create lunaria projectile animations
-    if (!this.anims.exists('lunaria_explode')) {
-      this.anims.create({
-        key: 'lunaria_explode',
-        frames: this.anims.generateFrameNumbers('lunaria_explode', { start: 0, end: 6 }),
-        frameRate: 15,
-        repeat: 0
-      });
-      this.anims.create({
-        key: 'lunaria_moving',
-        frames: this.anims.generateFrameNumbers('lunaria_moving', { start: 0, end: 3 }),
-        frameRate: 12,
-        repeat: -1
-      });
-    } // Group for ranged attacks
+    // Create projectile animations dynamically from hitboxes.json
+    const hitboxes = this.cache.json.get('hitbox_config');
+    if (hitboxes) {
+      for (const charKey in hitboxes) {
+        if (hitboxes[charKey].stats && CHARACTER_CONFIG[charKey]) {
+          Object.assign(CHARACTER_CONFIG[charKey], hitboxes[charKey].stats);
+        }
+        for (const animKey in hitboxes[charKey]) {
+          const proj = hitboxes[charKey][animKey].proj;
+          if (proj && proj.enabled) {
+            if (proj.animated && proj.path && !this.anims.exists(proj.texture + '_moving')) {
+              this.anims.create({
+                key: proj.texture + '_moving',
+                frames: this.anims.generateFrameNumbers(proj.texture + '_moving', { start: 0, end: proj.fc - 1 }),
+                frameRate: 12,
+                repeat: -1
+              });
+            }
+            if (proj.explodePath && !this.anims.exists(proj.texture + '_explode')) {
+              this.anims.create({
+                key: proj.texture + '_explode',
+                frames: this.anims.generateFrameNumbers(proj.texture + '_explode', { start: 0, end: proj.efc - 1 }),
+                frameRate: 15,
+                repeat: 0
+              });
+            }
+          }
+        }
+      }
+    }
+
     
     // Helper to damage enemies locally (Host or Singleplayer)
     this.damageEnemyLocal = (enemy, dmg, sourceX, sourceY) => {
@@ -154,42 +200,8 @@ export default class GameScene extends Phaser.Scene {
       }
     };
 
-    // Handle enemy projectiles hitting player
-    this.physics.add.overlap(this.enemyProjectiles, this.player, (player, projectile) => {
-      if (this.isDead || player.hp <= 0) return;
-      
-      let dmg = projectile.damage;
-      if (this.isGuarding) {
-        dmg = Math.max(1, Math.floor(dmg * 0.3));
-      }
-      
-      if (multiplayer.room) {
-        // Any client getting hit by a projectile tells the server
-        multiplayer.room.send("damage_player", { targetId: multiplayer.room.sessionId, damage: dmg, sourceX: projectile.x, sourceY: projectile.y });
-      } else {
-        // Single player mode
-        if (this.isGuarding) {
-          player.hp -= dmg;
-          this.showFloatingText(player.x, player.y - 40, `Blocked`, '#aaaaaa');
-        } else {
-          player.hp -= dmg;
-          this.showFloatingText(player.x, player.y - 40, `-${dmg}`, '#ff0000');
-          if (player.hp > 0) {
-            player.isHurt = true;
-            player.play(`${this.characterKey}_hurt`, true);
-            player.setVelocity(0, 0);
-            player.on('animationcomplete', () => { player.isHurt = false; });
-          }
-        }
-        if (player.hp <= 0 && !this.isDead) this.checkPlayerDeath();
-      }
-      
-      const explode = this.add.sprite(projectile.x, projectile.y, 'lunaria_explode');
-      explode.play('lunaria_explode');
-      explode.on('animationcomplete', () => explode.destroy());
-      projectile.destroy();
-    });
-    
+    // (Duplicate projectile overlap block removed)
+
     // Create Player based on selection (Spawn at designated spawn point if any)
     const playerConfig = CHARACTER_CONFIG[this.characterKey];
     const initialTexture = playerConfig.singleSpritesheet ? `${this.characterKey}_all` : `${this.characterKey}_idle`;
@@ -258,28 +270,56 @@ export default class GameScene extends Phaser.Scene {
     // Handle enemy projectiles hitting player
     this.physics.add.overlap(this.enemyProjectiles, this.player, (player, projectile) => {
       if (this.isDead || player.hp <= 0) return;
+      
+      let dmg = projectile.damage;
       if (this.isGuarding) {
-        // Reduced damage if guarding
-        player.hp -= Math.max(1, Math.floor(projectile.damage * 0.3));
-        this.showFloatingText(player.x, player.y - 40, `Blocked`, '#aaaaaa');
+        dmg = Math.max(1, Math.floor(dmg * 0.3));
+      }
+
+      if (multiplayer.room) {
+        // Any client getting hit by a projectile tells the server
+        multiplayer.room.send("damage_player", { targetId: multiplayer.room.sessionId, damage: dmg, sourceX: projectile.x, sourceY: projectile.y });
       } else {
-        player.hp -= projectile.damage;
-        this.showFloatingText(player.x, player.y - 40, `-${projectile.damage}`, '#ff0000');
-        
-        if (player.hp > 0) {
-          player.isHurt = true;
-          player.play(`${this.characterKey}_hurt`, true);
-          player.setVelocity(0, 0);
-          player.on('animationcomplete', () => {
-            player.isHurt = false;
-          });
+        if (this.isGuarding) {
+          player.hp -= dmg;
+          this.showFloatingText(player.x, player.y - 40, `Blocked`, '#aaaaaa');
+        } else {
+          player.hp -= dmg;
+          this.showFloatingText(player.x, player.y - 40, `-${dmg}`, '#ff0000');
+          
+          if (player.hp > 0) {
+            player.isHurt = true;
+            player.play(`${this.characterKey}_hurt`, true);
+            player.setVelocity(0, 0);
+            player.on('animationcomplete', () => {
+              player.isHurt = false;
+            });
+          }
+        }
+        this.checkPlayerDeath();
+      }
+      
+      // Explosion effect if configured
+      if (projectile.projConfig && projectile.projConfig.explodePath) {
+        const explKey = projectile.projConfig.texture + '_explode';
+        if (this.anims.exists(explKey)) {
+          const anim = this.anims.get(explKey);
+          if (anim && anim.frames && anim.frames.length > 0) {
+            const explode = this.add.sprite(projectile.x, projectile.y, explKey);
+            explode.play(explKey);
+            explode.on('animationcomplete', () => explode.destroy());
+          }
+        }
+      } else {
+        if (this.anims.exists('lunaria_explode')) {
+          const anim = this.anims.get('lunaria_explode');
+          if (anim && anim.frames && anim.frames.length > 0) {
+            const explode = this.add.sprite(projectile.x, projectile.y, 'lunaria_explode');
+            explode.play('lunaria_explode');
+            explode.on('animationcomplete', () => explode.destroy());
+          }
         }
       }
-      this.checkPlayerDeath();
-      
-      const explode = this.add.sprite(projectile.x, projectile.y, 'lunaria_explode');
-      explode.play('lunaria_explode');
-      explode.on('animationcomplete', () => explode.destroy());
       projectile.destroy();
     });
     
@@ -367,6 +407,7 @@ export default class GameScene extends Phaser.Scene {
     // Note: We've simplified the wave config by removing hardcoded bounding boxes (ox, oy, w, h)
     // because those are now dynamically handled in spawnEnemy via the character configuration!
     this.waves = [
+      [{ type: 'lunaria', x: 500, y: 400, scale: 1 }],
       // Wave 1
       [{ type: 'slime', x: 300, y: 400 }],
       // Wave 2
@@ -379,9 +420,8 @@ export default class GameScene extends Phaser.Scene {
       // Wave 4: Orc
       [{ type: 'orc', x: 400, y: 500 }],
       // Wave 5: Kaizer (Boss)
-      [{ type: 'kaizer', x: 400, y: 400, hpOverride: 500, scale: 1.5 }],
+      [{ type: 'kaizer', x: 400, y: 400, hpOverride: 500, scale: 1.5 }]
       // Wave 6: Lunaria (Ranged Boss)
-      [{ type: 'lunaria', x: 500, y: 400, scale: 1 }]
     ];
     this.currentWaveIndex = 0;
     
@@ -738,9 +778,28 @@ export default class GameScene extends Phaser.Scene {
 
       // 7. Projectile spawn event listener (for remote client visual sync)
       multiplayer.room.onMessage("projectile_spawned", (data) => {
-        const projectile = this.enemyProjectiles.create(data.x, data.y, 'lunaria_moving');
-        projectile.play('lunaria_moving');
-        projectile.setCircle(15, projectile.width / 2 - 15, projectile.height / 2 - 15);
+        const tex = data.projConfig && data.projConfig.texture ? data.projConfig.texture : 'lunaria_moving';
+        const projectile = this.enemyProjectiles.create(data.x, data.y, tex);
+        projectile.projConfig = data.projConfig;
+        
+        if (data.projConfig && data.projConfig.animated) {
+          if (this.anims.exists(tex + '_moving')) {
+            const anim = this.anims.get(tex + '_moving');
+            if (anim && anim.frames && anim.frames.length > 0) {
+              projectile.play(tex + '_moving');
+            }
+          }
+        } else if (tex === 'lunaria_moving') {
+          if (this.anims.exists('lunaria_moving')) {
+            const anim = this.anims.get('lunaria_moving');
+            if (anim && anim.frames && anim.frames.length > 0) {
+              projectile.play('lunaria_moving');
+            }
+          }
+        }
+        
+        const size = data.projConfig && data.projConfig.size !== undefined ? data.projConfig.size : 15;
+        projectile.setCircle(size, projectile.width / 2 - size, projectile.height / 2 - size);
         projectile.rotation = data.angle;
         projectile.damage = data.damage;
         projectile.setVelocity(Math.cos(data.angle) * data.speed, Math.sin(data.angle) * data.speed);
@@ -771,8 +830,21 @@ export default class GameScene extends Phaser.Scene {
 
       // 9. Player projectile spawn listener (for remote client visual sync)
       multiplayer.room.onMessage("player_projectile_spawned", (data) => {
-        const arrow = this.projectiles.create(data.x, data.y, 'arrow');
-        arrow.setCircle(10, arrow.width / 2 - 10, arrow.height / 2 - 10);
+        const tex = data.projConfig && data.projConfig.texture ? data.projConfig.texture : 'arrow';
+        const arrow = this.projectiles.create(data.x, data.y, tex);
+        arrow.projConfig = data.projConfig;
+        
+        if (data.projConfig && data.projConfig.animated) {
+          if (this.anims.exists(tex + '_moving')) {
+            const anim = this.anims.get(tex + '_moving');
+            if (anim && anim.frames && anim.frames.length > 0) {
+              arrow.play(tex + '_moving');
+            }
+          }
+        }
+        
+        const size = data.projConfig && data.projConfig.size !== undefined ? data.projConfig.size : 10;
+        arrow.setCircle(size, arrow.width / 2 - size, arrow.height / 2 - size);
         arrow.rotation = data.angle;
         arrow.damage = data.damage;
         arrow.setVelocity(Math.cos(data.angle) * data.speed, Math.sin(data.angle) * data.speed);
@@ -782,6 +854,41 @@ export default class GameScene extends Phaser.Scene {
           if (arrow && arrow.scene) arrow.destroy();
         });
       });
+
+      // 10. Load custom projectiles dynamically from hitbox configuration
+      const hitboxCfg = this.cache.json.get('hitbox_config') || {};
+      let needLoad = false;
+      Object.values(hitboxCfg).forEach(charAnims => {
+        Object.values(charAnims).forEach(anim => {
+          if (anim.proj && anim.proj.enabled) {
+            const p = anim.proj;
+            if (p.animated && p.path) {
+              if (!this.textures.exists(p.texture)) {
+                this.load.spritesheet(p.texture, p.path, { frameWidth: p.fw, frameHeight: p.fh });
+                needLoad = true;
+              }
+            } else if (p.path) {
+              if (!this.textures.exists(p.texture)) {
+                this.load.image(p.texture, p.path);
+                needLoad = true;
+              }
+            }
+            if (p.explodePath && !this.textures.exists(p.texture + '_explode')) {
+              this.load.spritesheet(p.texture + '_explode', p.explodePath, { frameWidth: p.efw, frameHeight: p.efh });
+              needLoad = true;
+            }
+          }
+        });
+      });
+
+      if (needLoad) {
+        this.load.once('complete', () => {
+          this.createCustomProjectileAnims(hitboxCfg);
+        });
+        this.load.start();
+      } else {
+        this.createCustomProjectileAnims(hitboxCfg);
+      }
     }
   }
 
@@ -814,19 +921,29 @@ export default class GameScene extends Phaser.Scene {
     let isActionTriggered = Phaser.Input.Keyboard.JustDown(this.spaceBar) || this.virtualActionTriggered;
     if (this.virtualActionTriggered) this.virtualActionTriggered = false;
     
-    // Prevent ranged attacks if no target is in range and facing
+    // Auto-aim for ranged attacks
     if (isActionTriggered && CHARACTER_CONFIG[this.characterKey].attackType === 'ranged') {
-      let hasTarget = false;
+      let closestEnemy = null;
+      let closestDist = Infinity;
       const maxRange = CHARACTER_CONFIG[this.characterKey].attackRange || 500;
+      
       this.enemies.forEach(enemy => {
         if (enemy.hp <= 0) return;
         const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
-        const isFacingEnemy = (this.player.flipX && enemy.x < this.player.x) || (!this.player.flipX && enemy.x > this.player.x);
-        if (dist < maxRange && isFacingEnemy) {
-          hasTarget = true;
+        if (dist < maxRange && dist < closestDist) {
+          closestDist = dist;
+          closestEnemy = enemy;
         }
       });
-      if (!hasTarget) isActionTriggered = false;
+      
+      if (closestEnemy) {
+        // Auto aim: face the enemy and set as target
+        this.player.setFlipX(closestEnemy.x < this.player.x);
+        this.player.targetEnemy = closestEnemy;
+      } else {
+        // If no target in range, clear target and still allow attacking in facing direction
+        this.player.targetEnemy = null;
+      }
     }
 
     const isGuardTriggered = this.shiftKey.isDown || this.isBtnBDown;
@@ -1307,7 +1424,9 @@ export default class GameScene extends Phaser.Scene {
 
     const dmg = CHARACTER_CONFIG[charKey].attack || 10;
 
-    if (CHARACTER_CONFIG[charKey].attackType === 'ranged') {
+    const projConfig = conf.proj && conf.proj.enabled ? conf.proj : null;
+
+    if (projConfig || CHARACTER_CONFIG[charKey].attackType === 'ranged') {
       const spawnX = attackRect.x + attackRect.width / 2;
       const spawnY = attackRect.y + attackRect.height / 2;
       
@@ -1322,27 +1441,63 @@ export default class GameScene extends Phaser.Scene {
       const angle = Phaser.Math.Angle.Between(spawnX, spawnY, targetX, targetY);
       
       if (isPlayer) {
-        const arrow = this.projectiles.create(spawnX, spawnY, 'arrow');
-        arrow.setCircle(10, arrow.width / 2 - 10, arrow.height / 2 - 10);
+        const tex = projConfig ? projConfig.texture : 'arrow';
+        const arrow = this.projectiles.create(spawnX, spawnY, tex);
+        arrow.projConfig = projConfig;
         arrow.damage = dmg;
         arrow.rotation = angle;
-        const speed = 600;
+        
+        const speed = projConfig && projConfig.speed !== undefined ? projConfig.speed : 600;
+        const size = projConfig && projConfig.size !== undefined ? projConfig.size : 10;
+        
+        arrow.setCircle(size, arrow.width / 2 - size, arrow.height / 2 - size);
         arrow.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
         arrow.setDepth(50);
+        
+        if (projConfig && projConfig.animated) {
+          if (this.anims.exists(tex + '_moving')) {
+            const anim = this.anims.get(tex + '_moving');
+            if (anim && anim.frames && anim.frames.length > 0) {
+              arrow.play(tex + '_moving');
+            }
+          }
+        }
+        
         if (multiplayer.room) {
-          multiplayer.room.send("spawn_player_projectile", { x: spawnX, y: spawnY, angle: angle, speed: speed, damage: dmg });
+          multiplayer.room.send("spawn_player_projectile", { x: spawnX, y: spawnY, angle: angle, speed: speed, damage: dmg, projConfig: projConfig });
         }
         this.time.delayedCall(2000, () => { if (arrow && arrow.scene) arrow.destroy(); });
       } else {
-        const projectile = this.enemyProjectiles.create(spawnX, spawnY, 'lunaria_moving');
-        projectile.play('lunaria_moving');
-        projectile.setCircle(15, projectile.width / 2 - 15, projectile.height / 2 - 15);
+        const tex = projConfig ? projConfig.texture : 'lunaria_moving';
+        const projectile = this.enemyProjectiles.create(spawnX, spawnY, tex);
+        projectile.projConfig = projConfig;
         projectile.damage = dmg;
         projectile.rotation = angle;
-        const speed = 250;
+        
+        const speed = projConfig && projConfig.speed !== undefined ? projConfig.speed : 250;
+        const size = projConfig && projConfig.size !== undefined ? projConfig.size : 15;
+        
+        projectile.setCircle(size, projectile.width / 2 - size, projectile.height / 2 - size);
         projectile.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+        
+        if (projConfig && projConfig.animated) {
+          if (this.anims.exists(tex + '_moving')) {
+            const anim = this.anims.get(tex + '_moving');
+            if (anim && anim.frames && anim.frames.length > 0) {
+              projectile.play(tex + '_moving');
+            }
+          }
+        } else if (tex === 'lunaria_moving') {
+          if (this.anims.exists('lunaria_moving')) {
+            const anim = this.anims.get('lunaria_moving');
+            if (anim && anim.frames && anim.frames.length > 0) {
+              projectile.play('lunaria_moving');
+            }
+          }
+        }
+        
         if (multiplayer.room) {
-          multiplayer.room.send("spawn_projectile", { x: spawnX, y: spawnY, angle: angle, speed: speed, damage: dmg });
+          multiplayer.room.send("spawn_projectile", { x: spawnX, y: spawnY, angle: angle, speed: speed, damage: dmg, projConfig: projConfig });
         }
         this.time.delayedCall(3000, () => { if (projectile && projectile.scene) projectile.destroy(); });
       }
@@ -1440,5 +1595,37 @@ export default class GameScene extends Phaser.Scene {
 
     sprite.setSize(bodyW, bodyH);
     sprite.setOffset(offX, offY);
+  }
+
+  createCustomProjectileAnims(hitboxCfg) {
+    Object.values(hitboxCfg).forEach(charAnims => {
+      Object.values(charAnims).forEach(anim => {
+        if (anim.proj && anim.proj.enabled) {
+          const p = anim.proj;
+          if (p.animated && this.textures.exists(p.texture) && !this.anims.exists(p.texture + '_moving')) {
+            const frames = this.anims.generateFrameNumbers(p.texture, { start: 0, end: p.fc - 1 });
+            if (frames && frames.length > 0) {
+              this.anims.create({
+                key: p.texture + '_moving',
+                frames: frames,
+                frameRate: 12,
+                repeat: -1
+              });
+            }
+          }
+          if (p.explodePath && this.textures.exists(p.texture + '_explode') && !this.anims.exists(p.texture + '_explode')) {
+            const frames = this.anims.generateFrameNumbers(p.texture + '_explode', { start: 0, end: p.efc - 1 });
+            if (frames && frames.length > 0) {
+              this.anims.create({
+                key: p.texture + '_explode',
+                frames: frames,
+                frameRate: 15,
+                repeat: 0
+              });
+            }
+          }
+        }
+      });
+    });
   }
 }

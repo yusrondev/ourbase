@@ -41,6 +41,70 @@
       "attackOx": 68.66666666666669,
       "attackOy": 34,
       "attackFrame": 5
+    },
+    "stats": {
+      "hp": 40,
+      "attack": 45,
+      "speed": 80,
+      "attackType": "ranged",
+      "attackRange": 120
+    },
+    "walk": {
+      "bodyW": 12.999999999999998,
+      "bodyH": 14.333333333333332,
+      "offsetX": 42.66666666666667,
+      "offsetY": 52.66666666666667,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    }
+  },
+  "lunaria": {
+    "attack": {
+      "bodyW": 30,
+      "bodyH": 40,
+      "offsetX": 55,
+      "offsetY": 50,
+      "attackW": 12.666666666666668,
+      "attackH": 11.333333333333332,
+      "attackOx": 100,
+      "attackOy": 50.66666666666667,
+      "attackFrame": 10,
+      "proj": {
+        "enabled": true,
+        "texture": "lunaria_proj",
+        "path": "/characters/lunaria/projectile/moving.png",
+        "speed": 400,
+        "size": 10,
+        "animated": true,
+        "fw": 50,
+        "fh": 50,
+        "fc": 4,
+        "explodePath": "",
+        "efw": 50,
+        "efh": 50,
+        "efc": 6
+      }
+    },
+    "stats": {
+      "hp": 180,
+      "attack": 1,
+      "speed": 90,
+      "attackType": "ranged",
+      "attackRange": 150
+    },
+    "idle": {
+      "bodyW": 30,
+      "bodyH": 40,
+      "offsetX": 55,
+      "offsetY": 50,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
     }
   }
 }
