@@ -38,14 +38,18 @@
         </div>
       </div>
 
-      <!-- CENTER: Phaser Preview + Stats -->
+      <!-- CENTER: Hero Info + Stats -->
       <div class="dp-center">
-        <!-- Phaser canvas is behind this div -->
-        <div class="dp-hero-info">
-          <div class="dp-hero-name-row">
-            <span id="detail-name">-</span>
+        <div class="dp-hero-info" style="margin-top: auto; margin-bottom: auto; padding: 20px; background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; border-radius: 8px;">
+          <div class="dp-hero-name-row" style="margin-bottom: 10px;">
+            <span id="detail-name" style="font-size: 32px;">-</span>
             <span id="detail-role" class="dp-role-badge">-</span>
           </div>
+          
+          <div id="detail-desc" style="color: #94a3b8; font-size: 14px; margin-bottom: 20px; line-height: 1.5;">
+            <!-- Description goes here -->
+          </div>
+
           <div class="dp-stats">
             <div class="dp-stat-row">
               <span class="dp-stat-label">HP</span>
@@ -64,6 +68,8 @@
             </div>
           </div>
         </div>
+
+        <div style="height: 20px;"></div>
         <button id="select-hero-btn" class="dp-confirm-btn">CONFIRM</button>
       </div>
 
@@ -89,6 +95,21 @@
     <div id="respawn-overlay" style="display: none;" class="respawn-overlay">
       <div class="respawn-simple-text">
         Respawning in <span id="respawn-timer">5</span>s
+      </div>
+    </div>
+
+    <!-- Mission Complete HTML Overlay -->
+    <div id="mission-complete-overlay" style="display: none;" class="mission-complete-overlay">
+      <div class="mission-complete-modal">
+        <div class="mission-title">MISSION COMPLETE</div>
+        <div class="mission-sub" id="mission-sub-text">LEVEL 1 CLEARED!</div>
+      </div>
+    </div>
+
+    <!-- Waiting for Players Overlay -->
+    <div id="waiting-overlay" style="display: none;" class="mission-complete-overlay">
+      <div class="mission-complete-modal">
+        <div class="mission-sub" style="font-size: 24px; letter-spacing: 2px;">WAITING FOR OTHER PLAYERS...</div>
       </div>
     </div>
 

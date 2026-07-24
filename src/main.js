@@ -48,8 +48,10 @@ function updateHeroDetails(key) {
 
   const detailName = document.getElementById('detail-name');
   const detailRole = document.getElementById('detail-role');
+  const detailDesc = document.getElementById('detail-desc');
   if (detailName) detailName.innerText = config.name;
   if (detailRole) detailRole.innerText = config.role || '';
+  if (detailDesc) detailDesc.innerText = config.description || 'Tidak ada deskripsi.';
 
   // Max bounds for calculating progress bar percentages
   const maxHP = 300;

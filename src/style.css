@@ -36,7 +36,7 @@ body {
   z-index: 999;
   display: flex;
   flex-direction: row;
-  background: linear-gradient(160deg, #080e1c 0%, #0d1829 60%, #091422 100%);
+  background: transparent; /* Allow Phaser canvas to be visible */
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -1025,3 +1025,52 @@ body {
   transition: width 0.1s linear;
 }
 .entity-hp-fill.enemy { background: #f87171; }
+
+/* ── MISSION COMPLETE TOP FLOATING BANNER ─────────────────────── */
+.mission-complete-overlay {
+  position: absolute;
+  top: 24px; left: 50%;
+  transform: translateX(-50%);
+  width: auto; height: auto;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  pointer-events: none;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.mission-complete-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 32px;
+  background: rgba(15, 23, 42, 0.82);
+  border: 1.5px solid rgba(74, 222, 128, 0.7);
+  border-radius: 14px;
+  box-shadow: 0 0 25px rgba(74, 222, 128, 0.3), inset 0 0 10px rgba(74, 222, 128, 0.1);
+  backdrop-filter: blur(4px);
+  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.mission-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: #4ade80;
+  text-shadow: 0 0 10px rgba(74, 222, 128, 0.7);
+  letter-spacing: 3px;
+  margin: 0;
+}
+
+.mission-sub {
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5f9;
+  letter-spacing: 1px;
+  margin-top: 2px;
+  opacity: 0.95;
+}

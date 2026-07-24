@@ -78,6 +78,24 @@
     .dialog label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
     .dialog select, .dialog input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:5px 8px;font-size:11px;font-family:'Outfit',sans-serif;margin-bottom:10px}
     .dialog-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+    
+    /* Tabs */
+    .tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border)}
+    .tab{flex:1;text-align:center;padding:8px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+    .tab:hover{color:var(--text)}
+    .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .tab-content{display:none;flex-direction:column;flex:1;overflow:hidden}
+    .tab-content.active{display:flex}
+    
+    /* Level Configurator */
+    .level-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--surface2);cursor:pointer}
+    .level-item.active{background:#6c63ff22;border-left:2px solid var(--accent)}
+    .level-item:hover{background:var(--surface)}
+    .wave-list{padding:10px;overflow-y:auto;flex:1}
+    .wave-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px}
+    .wave-header{display:flex;justify-content:space-between;font-weight:600;font-size:11px;margin-bottom:6px;color:var(--cyan)}
+    .enemy-row{display:flex;gap:4px;align-items:center;margin-bottom:4px}
+    .enemy-row select, .enemy-row input{background:var(--bg);padding:2px 4px;font-size:10px;height:20px}
   </style>
 </head>
 <body>
@@ -126,7 +144,14 @@
 <div class="main">
   <!-- ── Sidebar ── -->
   <aside>
-    <!-- Map List -->
+    <div class="tabs">
+      <div class="tab active" id="tab-btn-map">Map Editor</div>
+      <div class="tab" id="tab-btn-levels">Levels</div>
+    </div>
+    
+    <!-- Map Editor Tab -->
+    <div class="tab-content active" id="tab-map">
+      <!-- Map List -->
     <div class="ss map-list">
       <div class="st">
         Maps
@@ -161,6 +186,34 @@
     <!-- Zone list -->
     <div style="padding:5px 8px 3px;border-top:1px solid var(--border);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">Objects (<span id="zct">0</span>)</div>
     <div class="zl" id="zlist"></div>
+    </div>
+    
+    <!-- Levels Tab -->
+    <div class="tab-content" id="tab-levels">
+      <div class="ss" style="display:flex;justify-content:space-between;align-items:center">
+        <div class="st" style="margin:0">Levels</div>
+        <button class="tbtn" id="btn-add-level">+ Level</button>
+      </div>
+      <div id="levels-list" style="flex-shrink:0;max-height:30%;overflow-y:auto;border-bottom:1px solid var(--border)">
+        <!-- Levels go here -->
+      </div>
+      <div class="ss" id="level-details" style="flex:1;display:flex;flex-direction:column;display:none;overflow:hidden">
+        <div class="field-row" style="display:flex;gap:5px;align-items:center;margin-bottom:10px">
+          <label style="font-size:11px;color:var(--muted)">Map:</label>
+          <select id="level-map-select" style="flex:1"></select>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <div class="st" style="margin:0">Waves</div>
+          <button class="tbtn" id="btn-add-wave" style="padding:2px 6px;font-size:9px">+ Wave</button>
+        </div>
+        <div class="wave-list" id="waves-container">
+          <!-- Waves go here -->
+        </div>
+      </div>
+      <div style="padding:10px;border-top:1px solid var(--border)">
+        <button class="tbtn save-btn" id="btn-save-levels" style="width:100%;justify-content:center">💾 Save Levels</button>
+      </div>
+    </div>
   </aside>
 
   <div class="cw" id="cw"><canvas id="ec"></canvas></div>
@@ -186,7 +239,7 @@
   </div>
 </div>
 
-<script>
+<script type="module">
 // ══════════════════════════════════════════════════════
 //  MAP EDITOR v3 — Rect + Freehand Paint + Map List
 // ══════════════════════════════════════════════════════
@@ -201,6 +254,10 @@ let currentColor='red';
 let brushSize=8; // pixels in world space
 let currentMap=null; // { name, png, json }
 let allMaps=[]; // list from API
+let allLevels=[]; // list of levels
+let currentLevelIndex=-1;
+import { CHARACTER_CONFIG } from '/src/config/characters.js';
+const AVAILABLE_ENEMIES = Object.keys(CHARACTER_CONFIG).filter(k => !CHARACTER_CONFIG[k].role || CHARACTER_CONFIG[k].role.toLowerCase() === 'enemy' || !['Assassin','Fighter','Tank','Mage','Marksman','Support'].includes(CHARACTER_CONFIG[k].role));
 
 // ── Rect / Spawn / Portal zones ──
 let zones=[];
@@ -270,6 +327,7 @@ function renderMapList(){
   });
   // Also update portal target selects
   document.getElementById('portal-target-map').innerHTML=allMaps.map(m=>`<option value="${m.name}">${m.name}</option>`).join('');
+  document.getElementById('level-map-select').innerHTML=allMaps.map(m=>`<option value="${m.name}">${m.name}</option>`).join('');
 }
 async function selectMap(m){
   if(currentMap&&currentMap.name!==m.name){
@@ -522,7 +580,13 @@ function render(){
       ctx.beginPath();ctx.arc(cx+cw/2,cy+ch/2,Math.max(cw,ch)/2,0,Math.PI*2);ctx.fill();
       ctx.strokeStyle=i===selIdx?'#fff':cm.stroke;ctx.lineWidth=i===selIdx?2:1.5;ctx.stroke();
       ctx.font=`${Math.max(11,cw*.55)}px Arial`;ctx.textAlign='center';
-      ctx.fillText(z.type==='spawn_player'?'📍':'👾',cx+cw/2,cy+ch/2);
+      if(z.type==='spawn_player'){
+        const pSpawns = zones.filter(zn => zn.type === 'spawn_player');
+        const pIndex = pSpawns.indexOf(z) + 1;
+        ctx.fillText(`📍${pIndex}`,cx+cw/2,cy+ch/2);
+      } else {
+        ctx.fillText('👾',cx+cw/2,cy+ch/2);
+      }
     } else if(z.type==='portal'){
       ctx.fillStyle=cm.fill;ctx.fillRect(cx,cy,cw,ch);
       ctx.strokeStyle=i===selIdx?'#fff':cm.stroke;ctx.lineWidth=i===selIdx?2:1.5;
@@ -779,6 +843,155 @@ document.addEventListener('keydown',e=>{
   if(e.key==='['&&brushSize>1){brushSize=Math.max(1,brushSize-2);bsz.value=brushSize;document.getElementById('brush-val').textContent=brushSize+'px';}
   if(e.key===']'&&brushSize<40){brushSize=Math.min(40,brushSize+2);bsz.value=brushSize;document.getElementById('brush-val').textContent=brushSize+'px';}
 });
+
+// ─── Levels Configurator ────────────────────────
+document.getElementById('tab-btn-map').addEventListener('click',()=>{
+  document.getElementById('tab-btn-map').classList.add('active');
+  document.getElementById('tab-btn-levels').classList.remove('active');
+  document.getElementById('tab-map').classList.add('active');
+  document.getElementById('tab-levels').classList.remove('active');
+  document.getElementById('cw').style.display='flex';
+});
+document.getElementById('tab-btn-levels').addEventListener('click',()=>{
+  document.getElementById('tab-btn-levels').classList.add('active');
+  document.getElementById('tab-btn-map').classList.remove('active');
+  document.getElementById('tab-levels').classList.add('active');
+  document.getElementById('tab-map').classList.remove('active');
+  document.getElementById('cw').style.display='none';
+  if(allLevels.length===0) fetchLevels();
+});
+
+async function fetchLevels() {
+  try {
+    const r = await fetch('/api/levels');
+    allLevels = await r.json();
+    renderLevelsList();
+  } catch(e) {
+    setStatus('❌ Failed to load levels');
+  }
+}
+
+function renderLevelsList() {
+  const container = document.getElementById('levels-list');
+  container.innerHTML = '';
+  allLevels.forEach((lv, i) => {
+    const div = document.createElement('div');
+    div.className = 'level-item' + (currentLevelIndex === i ? ' active' : '');
+    div.innerHTML = `<span style="font-size:12px;font-weight:600">Level ${lv.level}</span><span style="font-size:10px;color:var(--muted)">${lv.map}</span>`;
+    div.addEventListener('click', () => { currentLevelIndex = i; renderLevelsList(); renderLevelDetails(); });
+    container.appendChild(div);
+  });
+  if (currentLevelIndex >= 0 && currentLevelIndex < allLevels.length) {
+    document.getElementById('level-details').style.display = 'flex';
+    renderLevelDetails();
+  } else {
+    document.getElementById('level-details').style.display = 'none';
+  }
+}
+
+function renderLevelDetails() {
+  const lv = allLevels[currentLevelIndex];
+  if(!lv) return;
+  const mapSelect = document.getElementById('level-map-select');
+  mapSelect.value = lv.map;
+  mapSelect.onchange = (e) => { lv.map = e.target.value; renderLevelsList(); };
+
+  const wContainer = document.getElementById('waves-container');
+  wContainer.innerHTML = '';
+  lv.waves.forEach((wave, wIndex) => {
+    const wCard = document.createElement('div');
+    wCard.className = 'wave-card';
+    
+    const wHead = document.createElement('div');
+    wHead.className = 'wave-header';
+    wHead.innerHTML = `<span>Wave ${wIndex + 1}</span>`;
+    
+    const delWaveBtn = document.createElement('button');
+    delWaveBtn.className = 'tbtn danger';
+    delWaveBtn.style.padding = '0 4px';
+    delWaveBtn.innerHTML = '×';
+    delWaveBtn.onclick = () => { lv.waves.splice(wIndex, 1); renderLevelDetails(); };
+    wHead.appendChild(delWaveBtn);
+    wCard.appendChild(wHead);
+    
+    const eList = document.createElement('div');
+    wave.forEach((enemy, eIndex) => {
+      const row = document.createElement('div');
+      row.className = 'enemy-row';
+      
+      const sel = document.createElement('select');
+      sel.style.flex = '1';
+      sel.innerHTML = AVAILABLE_ENEMIES.map(e => `<option value="${e}" ${enemy.type===e?'selected':''}>${e}</option>`).join('');
+      sel.onchange = (e) => { enemy.type = e.target.value; };
+      
+      const countInput = document.createElement('input');
+      countInput.type = 'number';
+      countInput.value = enemy.count || 1;
+      countInput.min = 1;
+      countInput.style.width = '40px';
+      countInput.onchange = (e) => { enemy.count = parseInt(e.target.value); };
+      
+      const delEBtn = document.createElement('button');
+      delEBtn.className = 'tbtn';
+      delEBtn.style.padding = '0 4px';
+      delEBtn.innerHTML = '×';
+      delEBtn.onclick = () => { wave.splice(eIndex, 1); renderLevelDetails(); };
+      
+      row.appendChild(sel);
+      row.appendChild(countInput);
+      row.appendChild(delEBtn);
+      eList.appendChild(row);
+    });
+    wCard.appendChild(eList);
+    
+    const addEBtn = document.createElement('button');
+    addEBtn.className = 'tbtn';
+    addEBtn.style.width = '100%';
+    addEBtn.style.justifyContent = 'center';
+    addEBtn.style.marginTop = '4px';
+    addEBtn.innerText = '+ Enemy';
+    addEBtn.onclick = () => { wave.push({type: AVAILABLE_ENEMIES[0], count: 1}); renderLevelDetails(); };
+    wCard.appendChild(addEBtn);
+    
+    wContainer.appendChild(wCard);
+  });
+}
+
+document.getElementById('btn-add-level').addEventListener('click', () => {
+  const newLvNum = allLevels.length + 1;
+  allLevels.push({
+    level: newLvNum,
+    map: allMaps.length > 0 ? allMaps[0].name : '',
+    waves: []
+  });
+  currentLevelIndex = allLevels.length - 1;
+  renderLevelsList();
+});
+
+document.getElementById('btn-add-wave').addEventListener('click', () => {
+  if (currentLevelIndex >= 0) {
+    allLevels[currentLevelIndex].waves.push([]);
+    renderLevelDetails();
+  }
+});
+
+document.getElementById('btn-save-levels').addEventListener('click', async () => {
+  try {
+    const r = await fetch('/api/levels/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(allLevels)
+    });
+    if (r.ok) {
+      setStatus('✅ Levels Configuration Saved!');
+    } else {
+      setStatus('❌ Save Failed');
+    }
+  } catch(e) {
+    setStatus('❌ Error: ' + e.message);
+  }
+});
+
 
 window.addEventListener('resize',()=>setupCanvas());
 

@@ -10,14 +10,88 @@ export default class GameScene extends Phaser.Scene {
   init(data) {
     this.cleanUpHtmlTags();
     this.characterKey = data.character || 'lucien'; // 'human' or 'soldier2'
+    this.currentLevelNum = data.level || 1;
+    this.overrideMapName = data.map || null;
   }
 
   preload() {
-    // Load map background
-    this.load.image('map_bg', '/maps/1.png');
+    // Add Loading Bar
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
     
-    // Load collision data for current map
-    this.load.json('map_collisions', '/maps/1_collisions.json');
+    const progressBar = this.add.graphics();
+    const progressBox = this.add.graphics();
+    progressBox.fillStyle(0x222222, 0.8);
+    progressBox.fillRect(width / 2 - 160, height / 2 - 25, 320, 50);
+
+    const loadingText = this.make.text({
+      x: width / 2,
+      y: height / 2 - 50,
+      text: 'Loading Map...',
+      style: {
+        font: 'bold 20px "Segoe UI", Arial, sans-serif',
+        fill: '#ffffff'
+      }
+    });
+    loadingText.setOrigin(0.5, 0.5);
+
+    const percentText = this.make.text({
+      x: width / 2,
+      y: height / 2,
+      text: '0%',
+      style: {
+        font: 'bold 18px "Segoe UI", Arial, sans-serif',
+        fill: '#000000'
+      }
+    });
+    percentText.setOrigin(0.5, 0.5);
+
+    const onProgress = (value) => {
+      if (!percentText || !percentText.active) return;
+      percentText.setText(parseInt(value * 100) + '%');
+      progressBar.clear();
+      progressBar.fillStyle(0x4ade80, 1);
+      progressBar.fillRect(width / 2 - 150, height / 2 - 15, 300 * value, 30);
+    };
+
+    const onComplete = () => {
+      this.load.off('progress', onProgress);
+      this.load.off('complete', onComplete);
+      if (progressBar.active) progressBar.destroy();
+      if (progressBox.active) progressBox.destroy();
+      if (loadingText.active) loadingText.destroy();
+      if (percentText.active) percentText.destroy();
+    };
+
+    this.load.on('progress', onProgress);
+    this.load.on('complete', onComplete);
+
+    // Load levels config
+    this.load.json('levels_config', '/levels.json');
+    
+    const loadMapAssets = (levelsData) => {
+      const levelConfig = levelsData.find(l => l.level === this.currentLevelNum) || levelsData[0];
+      const mapName = this.overrideMapName || (levelConfig ? levelConfig.map : '1');
+      if (mapName) {
+        if (this.textures.exists('map_bg')) {
+          this.textures.remove('map_bg');
+        }
+        if (this.cache.json.exists('map_collisions')) {
+          this.cache.json.remove('map_collisions');
+        }
+        this.load.image('map_bg', `/maps/${mapName}.png`);
+        this.load.json('map_collisions', `/maps/${mapName}_collisions.json`);
+      }
+    };
+
+    if (this.cache.json.exists('levels_config')) {
+      const data = this.cache.json.get('levels_config');
+      loadMapAssets(data);
+    } else {
+      this.load.once('filecomplete-json-levels_config', (key, type, data) => {
+        loadMapAssets(data);
+      });
+    }
     
     // Load hitbox configs from hitbox editor
     this.load.json('hitbox_config', '/characters/hitboxes.json');
@@ -91,6 +165,33 @@ export default class GameScene extends Phaser.Scene {
     this.playerSpawns = collisionData.filter(z => z.type === 'spawn_player');
     this.enemySpawns = collisionData.filter(z => z.type === 'spawn_enemy');
 
+    // ── Build portal zones from editor data ──
+    const portalData = collisionData.filter(z => z.type === 'portal');
+    this.portalsGroup = this.physics.add.staticGroup();
+    this.isTransitioning = false;
+    portalData.forEach(zone => {
+      const zoneObj = this.add.zone(
+        zone.x + zone.width / 2,
+        zone.y + zone.height / 2,
+        zone.width,
+        zone.height
+      );
+      this.physics.add.existing(zoneObj, true);
+      zoneObj.targetMap = zone.targetMap;
+      zoneObj.label = zone.label;
+      this.portalsGroup.add(zoneObj);
+      
+      // Portal label text
+      this.add.text(zone.x + zone.width / 2, zone.y - 12, zone.label || 'Portal', {
+        fontSize: '10px',
+        fill: '#22d3ee',
+        backgroundColor: '#161a22aa',
+        fontFamily: 'Outfit, sans-serif',
+        fontStyle: 'bold',
+        padding: { x: 4, y: 2 }
+      }).setOrigin(0.5).setDepth(200);
+    });
+
 
     this.enemies = []; // Central array for enemies
     this.enemyGroup = this.physics.add.group();
@@ -162,26 +263,38 @@ export default class GameScene extends Phaser.Scene {
     
     // Helper to damage enemies locally (Host or Singleplayer)
     this.damageEnemyLocal = (enemy, dmg, sourceX, sourceY) => {
+      if (!enemy || !enemy.active) return;
       enemy.hp -= dmg;
       if (enemy.hp <= 0) {
-        if (enemy.uiContainer) enemy.uiContainer.remove();
-        enemy.setVelocity(0);
-        enemy.body.enable = false;
-        if (this.anims.exists(`${enemy.type}_death`)) {
-          enemy.play(`${enemy.type}_death`);
+        if (enemy.isDying) return;
+        enemy.isDying = true;
+        enemy.hp = 0;
+        
+        if (enemy.uiContainer) {
+          enemy.uiContainer.remove();
+          enemy.uiContainer = null;
         }
         
-        // Fade out after 1 detik
-        this.time.delayedCall(1000, () => {
+        enemy.setVelocity(0, 0);
+        if (enemy.body) enemy.body.enable = false;
+        
+        if (this.anims.exists(`${enemy.type}_death`)) {
+          enemy.play(`${enemy.type}_death`, true);
+        }
+        
+        // Fade out and destroy
+        this.time.delayedCall(800, () => {
           if (enemy && enemy.scene) {
             this.tweens.add({
               targets: enemy,
               alpha: 0,
-              duration: 1000,
+              duration: 600,
               onComplete: () => {
-                if (enemy) enemy.destroy();
+                if (enemy && enemy.destroy) enemy.destroy();
               }
             });
+          } else if (enemy && enemy.destroy) {
+            enemy.destroy();
           }
         });
       } else {
@@ -191,9 +304,11 @@ export default class GameScene extends Phaser.Scene {
         }
         enemy.isAttacking = false; // Cancel attack if hit
 
-        const angle = Phaser.Math.Angle.Between(sourceX, sourceY, enemy.x, enemy.y);
-        enemy.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);
-        setTimeout(() => { if (enemy && enemy.hp > 0) enemy.setVelocity(0); }, 150);
+        if (sourceX !== undefined && sourceY !== undefined) {
+          const angle = Phaser.Math.Angle.Between(sourceX, sourceY, enemy.x, enemy.y);
+          enemy.setVelocity(Math.cos(angle) * 150, Math.sin(angle) * 150);
+          setTimeout(() => { if (enemy && enemy.hp > 0) enemy.setVelocity(0); }, 150);
+        }
       }
     };
 
@@ -245,6 +360,49 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.collisionGroup);
     // ── Collision: enemies cannot pass through collision zones ──
     this.physics.add.collider(this.enemyGroup, this.collisionGroup);
+
+    this.performMapTransition = (targetMap) => {
+      if (this.isTransitioning) return;
+      this.isTransitioning = true;
+
+      if (this.player && this.player.body) {
+        this.player.setVelocity(0, 0);
+        this.player.body.enable = false;
+      }
+
+      this.showFloatingText(this.player.x, this.player.y - 40, `Entering Portal...`, '#22d3ee');
+      this.cameras.main.fadeOut(600, 0, 0, 0);
+
+      this.time.delayedCall(700, () => {
+        this.cleanUpHtmlTags();
+        const levels = this.cache.json.get('levels_config') || [];
+        const nextLevel = levels.find(l => l.map === targetMap);
+
+        if (nextLevel) {
+          this.scene.restart({
+            character: this.characterKey,
+            level: nextLevel.level
+          });
+        } else {
+          this.scene.restart({
+            character: this.characterKey,
+            level: this.currentLevelNum,
+            map: targetMap
+          });
+        }
+      });
+    };
+
+    // Handle player entering portals
+    this.physics.add.overlap(this.player, this.portalsGroup, (player, portalZone) => {
+      if (!this.levelComplete || this.isTransitioning) return;
+      
+      if (multiplayer.room) {
+        multiplayer.room.send("change_level", { targetMap: portalZone.targetMap });
+      } else {
+        this.performMapTransition(portalZone.targetMap);
+      }
+    });
     
 
     // Draw range indicator for ranged characters or Monk
@@ -405,41 +563,32 @@ export default class GameScene extends Phaser.Scene {
     };
 
     // --- Wave System Configuration ---
-    // Note: We've simplified the wave config by removing hardcoded bounding boxes (ox, oy, w, h)
-    // because those are now dynamically handled in spawnEnemy via the character configuration!
-    this.waves = [
-      // Wave 1
-      [{ type: 'slime', x: 300, y: 400 }],
-      // Wave 2
-      [{ type: 'blood', x: 500, y: 400 }],
-      // Wave 3
-      [
-        { type: 'demon', x: 400, y: 300 },
-        { type: 'slime', x: 300, y: 500 },
-        { type: 'slime', x: 300, y: 500 },
-        { type: 'slime', x: 300, y: 500 }
-      ],
-      // Wave 4: Orc
-      [{ type: 'orc', x: 400, y: 500 }, { type: 'blood', x: 500, y: 400 }, { type: 'blood', x: 500, y: 400 }],
-      // Wave 5: Kaizer (Boss)
-      [{ type: 'kaizer', x: 400, y: 400, hpOverride: 500, scale: 1.5 }, { type: 'blood', x: 500, y: 400 }, { type: 'orc', x: 400, y: 500 }],
-      // Wave 6: Lunaria (Ranged Boss)
-      [{ type: 'lunaria', x: 500, y: 400, scale: 1 }]
-    ];
+    // Load waves from level config
+    const levelsData = this.cache.json.get('levels_config') || [];
+    const currentLevelConfig = levelsData.find(l => l.level === this.currentLevelNum) || levelsData[0];
+    this.waves = currentLevelConfig ? currentLevelConfig.waves : [];
     this.currentWaveIndex = 0;
     
     this.startWave = (index) => {
       const wave = this.waves[index];
       if (!wave) return;
       wave.forEach(enemyConfig => {
-        let ex = enemyConfig.x;
-        let ey = enemyConfig.y;
-        if (this.enemySpawns.length > 0) {
-          const spawn = Phaser.Math.RND.pick(this.enemySpawns);
-          ex = spawn.x + spawn.width / 2;
-          ey = spawn.y + spawn.height / 2;
+        const count = enemyConfig.count || 1;
+        for (let i = 0; i < count; i++) {
+          let ex = this.WORLD_WIDTH / 2;
+          let ey = this.WORLD_HEIGHT / 2;
+          if (this.enemySpawns && this.enemySpawns.length > 0) {
+            const spawn = Phaser.Math.RND.pick(this.enemySpawns);
+            ex = spawn.x + spawn.width / 2;
+            ey = spawn.y + spawn.height / 2;
+          } else if (enemyConfig.x !== undefined && enemyConfig.y !== undefined) {
+            ex = enemyConfig.x;
+            ey = enemyConfig.y;
+          }
+          const hp = enemyConfig.hpOverride || enemyConfig.hp;
+          const scale = enemyConfig.scale || 1;
+          this.spawnEnemy(ex, ey, enemyConfig.type, hp, scale);
         }
-        this.spawnEnemy(ex, ey, enemyConfig.type, enemyConfig.hp);
       });
     };
 
@@ -478,9 +627,16 @@ export default class GameScene extends Phaser.Scene {
     this.isDead = false;
 
     this.getSafeSpawnPosition = () => {
-      // Selalu kembalikan posisi spawn yang ditentukan (tidak random / distance check)
       if (this.playerSpawns.length > 0) {
-        const spawn = this.playerSpawns[0]; // Ambil titik spawn pertama
+        let spawnIdx = 0;
+        if (multiplayer.room) {
+          const playerIds = Array.from(multiplayer.room.state.players.keys());
+          const myIndex = playerIds.indexOf(multiplayer.room.sessionId);
+          if (myIndex !== -1) spawnIdx = myIndex % this.playerSpawns.length;
+        } else {
+          spawnIdx = Math.floor(Math.random() * this.playerSpawns.length);
+        }
+        const spawn = this.playerSpawns[spawnIdx];
         return { 
           x: spawn.x + spawn.width / 2, 
           y: spawn.y + spawn.height / 2 
@@ -526,6 +682,14 @@ export default class GameScene extends Phaser.Scene {
         if (this.anims.exists(`${this.characterKey}_death`)) {
           this.player.play(`${this.characterKey}_death`);
         }
+        
+        // Fade out player sprite
+        this.tweens.add({
+          targets: this.player,
+          alpha: 0,
+          duration: 1000,
+          ease: 'Power2'
+        });
 
         // Show Respawn Overlay
         const overlay = document.getElementById('respawn-overlay');
@@ -572,8 +736,20 @@ export default class GameScene extends Phaser.Scene {
     };
 
     if (multiplayer.room) {
+      if (multiplayer.isHost) {
+        multiplayer.room.send("host_update_enemies", []);
+      }
+
+      // Guard against stale listeners from previous scene instances (map transitions)
+      // Each scene restart gets a new unique generation ID
+      if (!GameScene._sceneGeneration) GameScene._sceneGeneration = 0;
+      GameScene._sceneGeneration++;
+      const myGeneration = GameScene._sceneGeneration;
+      const isCurrentScene = () => GameScene._sceneGeneration === myGeneration;
+
       // 1. Listen for remote players joining & moving
       multiplayer.room.state.players.onAdd((playerState, sessionId) => {
+        if (!isCurrentScene()) return;
         if (sessionId !== multiplayer.room.sessionId) {
           const charKey = playerState.character || 'human';
           const pConfig = CHARACTER_CONFIG[charKey];
@@ -605,22 +781,22 @@ export default class GameScene extends Phaser.Scene {
           };
           this.remotePlayers.set(sessionId, rpData);
 
-          // Register Host-Authoritative overlap for enemy projectiles hitting remote players
-          if (multiplayer.isHost) {
-            this.physics.add.overlap(this.enemyProjectiles, rSprite, (rpSprite, projectile) => {
-              if (rpData.hp <= 0) return;
-              
-              const dmg = projectile.damage || 10;
-              multiplayer.room.send("damage_player", { targetId: sessionId, damage: dmg, sourceX: projectile.x, sourceY: projectile.y });
-              
-              const explode = this.add.sprite(projectile.x, projectile.y, 'lunaria_explode');
-              explode.play('lunaria_explode');
-              explode.on('animationcomplete', () => explode.destroy());
-              projectile.destroy();
-            });
-          }
-
           playerState.onChange(() => {
+            if (!isCurrentScene()) return;
+            if (!rSprite || !rSprite.active || !rSprite.body) return;
+            
+            // Handle character & scale sync dynamically only when character changes
+            if (playerState.character && rpData.charKey !== playerState.character) {
+              rpData.charKey = playerState.character;
+              const pConfig = CHARACTER_CONFIG[rpData.charKey] || CHARACTER_CONFIG['human'];
+              const playerScale = pConfig.scale || 1;
+              rSprite.setScale(playerScale);
+              const initialTexture = pConfig.singleSpritesheet ? `${rpData.charKey}_all` : `${rpData.charKey}_idle`;
+              if (this.textures.exists(initialTexture)) {
+                rSprite.setTexture(initialTexture);
+              }
+            }
+
             if (playerState.x !== undefined) rpData.targetX = playerState.x;
             if (playerState.y !== undefined) rpData.targetY = playerState.y;
             
@@ -628,23 +804,35 @@ export default class GameScene extends Phaser.Scene {
               rpData.hp = playerState.hp;
               if (playerState.hp <= 0) {
                 rSprite.body.enable = false; // Disable body on other clients too
-                if (rSprite.active && rSprite.hp <= 0) {
-                  if (this.anims.exists(`${charKey}_death`)) {
-                    rSprite.play(`${charKey}_death`, true);
+                if (rSprite.active && rpData.hp <= 0) {
+                  if (this.anims.exists(`${rpData.charKey}_death`)) {
+                    rSprite.play(`${rpData.charKey}_death`, true);
                   }
-                  // No alpha fade, leave body visible
+                  // Add fade out tween
+                  this.tweens.add({
+                    targets: rSprite,
+                    alpha: 0,
+                    duration: 1000,
+                    ease: 'Power2'
+                  });
                 }
               } else {
                 rSprite.body.enable = true; // Enable body on respawn
+                this.tweens.killTweensOf(rSprite);
                 rSprite.alpha = 1;
               }
             }
             if (playerState.maxHp !== undefined) rpData.maxHp = playerState.maxHp;
+            if (playerState.isMoving !== undefined) rpData.isMoving = playerState.isMoving;
             
-            if (playerState.anim && playerState.anim !== 'idle') {
-               rSprite.play(playerState.anim, true);
-            } else if (!playerState.isMoving) {
-               rSprite.play(`${charKey}_idle`, true);
+            // Handle action animations (attacks, hurt, death, skill, etc.) from network
+            if (playerState.anim) {
+              rpData.anim = playerState.anim;
+              if (!playerState.anim.endsWith('_walk') && !playerState.anim.endsWith('_idle')) {
+                if (this.anims.exists(playerState.anim)) {
+                  rSprite.play(playerState.anim, true);
+                }
+              }
             }
             
             if (playerState.angle !== undefined) {
@@ -655,6 +843,7 @@ export default class GameScene extends Phaser.Scene {
       });
 
       multiplayer.room.state.players.onRemove((playerState, sessionId) => {
+        if (!isCurrentScene()) return;
         const rp = this.remotePlayers.get(sessionId);
         if (rp) {
           if (rp.sprite) rp.sprite.destroy();
@@ -668,35 +857,71 @@ export default class GameScene extends Phaser.Scene {
         this.currentWaveIndex = 999; // Disable local waves triggers for Joiners
 
         multiplayer.room.state.enemies.onAdd((enemyState, id) => {
+          if (!isCurrentScene()) return;
+          // Skip if enemy with this id already exists (guard against double-register)
+          if (this.enemies.find(e => e.id === id)) return;
+
           const enemy = this.spawnEnemy(enemyState.x, enemyState.y, enemyState.type, enemyState.hp, 1, id);
           enemy.targetX = enemyState.x;
           enemy.targetY = enemyState.y;
 
           enemyState.onChange(() => {
+            if (!isCurrentScene()) return;
+            if (!enemy || !enemy.active || enemy.isDying) return;
             enemy.targetX = enemyState.x;
             enemy.targetY = enemyState.y;
             enemy.hp = enemyState.hp;
             enemy.maxHp = enemyState.maxHp;
             enemy.flipX = enemyState.flipX;
-            if (enemyState.anim && enemy.anims.currentAnim?.key !== enemyState.anim) {
-               if (!enemyState.anim.includes('attack')) {
-                 enemy.play(enemyState.anim, true);
-               }
+
+            if (enemy.hp <= 0 && enemy.active && !enemy.isDying) {
+              this.damageEnemyLocal(enemy, 0, enemy.x, enemy.y);
+            } else if (enemy.hp > 0 && enemy.anims && enemyState.anim) {
+              const curAnimKey = enemy.anims.currentAnim ? enemy.anims.currentAnim.key : '';
+              if (curAnimKey !== enemyState.anim && !enemyState.anim.includes('attack')) {
+                enemy.play(enemyState.anim, true);
+              }
             }
           });
         });
 
         multiplayer.room.state.enemies.onRemove((enemyState, id) => {
+          if (!isCurrentScene()) return;
           const enemy = this.enemies.find(e => e.id === id);
-          if (enemy && enemy.hp > 0) {
-            enemy.hp = 0;
-            this.damageEnemyLocal(enemy, 0, enemy.x, enemy.y);
+          if (!enemy) return;
+
+          // Remove UI immediately, unconditionally
+          if (enemy.uiContainer) {
+            enemy.uiContainer.remove();
+            enemy.uiContainer = null;
+          }
+          enemy.hp = 0;
+          enemy.isDying = true;
+          this.tweens.killTweensOf(enemy);
+
+          if (enemy.active && enemy.scene) {
+            if (enemy.body) enemy.body.enable = false;
+            enemy.setVelocity(0, 0);
+            if (this.anims.exists(`${enemy.type}_death`)) {
+              enemy.play(`${enemy.type}_death`, true);
+              enemy.once('animationcomplete', () => {
+                if (enemy && enemy.scene) enemy.destroy();
+              });
+              this.time.delayedCall(1500, () => {
+                if (enemy && enemy.scene) enemy.destroy();
+              });
+            } else {
+              enemy.destroy();
+            }
+          } else {
+            if (enemy && enemy.destroy) enemy.destroy();
           }
         });
       }
 
       // 3. Enemy Hit broadcast listener (everyone shows damage text, host applies damage)
       multiplayer.room.onMessage("enemy_hit", (data) => {
+        if (!isCurrentScene()) return;
         const enemy = this.enemies.find(e => e.id === data.id);
         if (enemy) {
           this.showFloatingText(enemy.x, enemy.y - 40, `-${data.damage}`, '#ffffff');
@@ -708,6 +933,7 @@ export default class GameScene extends Phaser.Scene {
 
       // 4. Player Hit broadcast listener (everyone shows player damage, target reduces HP)
       multiplayer.room.onMessage("player_hit", (data) => {
+        if (!isCurrentScene()) return;
         let targetSprite = null;
         if (data.targetId === multiplayer.room.sessionId) {
           targetSprite = this.player;
@@ -744,6 +970,7 @@ export default class GameScene extends Phaser.Scene {
 
       // 5. Player Healed broadcast listener
       multiplayer.room.onMessage("player_healed", (data) => {
+        if (!isCurrentScene()) return;
         let targetSprite = null;
         if (data.targetId === multiplayer.room.sessionId) {
           targetSprite = this.player;
@@ -766,6 +993,7 @@ export default class GameScene extends Phaser.Scene {
 
       // 6. Enemy attack event listener (play attack animations on remote client)
       multiplayer.room.onMessage("enemy_attacked", (data) => {
+        if (!isCurrentScene()) return;
         const enemy = this.enemies.find(e => e.id === data.id);
         if (enemy) {
           enemy.play(data.anim, true);
@@ -774,6 +1002,7 @@ export default class GameScene extends Phaser.Scene {
 
       // 7. Projectile spawn event listener (for remote client visual sync)
       multiplayer.room.onMessage("projectile_spawned", (data) => {
+        if (!isCurrentScene()) return;
         const tex = data.projConfig && data.projConfig.texture ? data.projConfig.texture : 'lunaria_moving';
         const projectile = this.enemyProjectiles.create(data.x, data.y, tex);
         projectile.projConfig = data.projConfig;
@@ -805,6 +1034,8 @@ export default class GameScene extends Phaser.Scene {
       const localPlayerState = multiplayer.room.state.players.get(multiplayer.room.sessionId);
       if (localPlayerState) {
         localPlayerState.onChange(() => {
+          if (!isCurrentScene()) return;
+          if (!this.player || !this.player.active || !this.player.body) return;
           if (localPlayerState.maxHp !== undefined) {
             this.playerMaxHp = localPlayerState.maxHp;
           }
@@ -826,6 +1057,7 @@ export default class GameScene extends Phaser.Scene {
 
       // 9. Player projectile spawn listener (for remote client visual sync)
       multiplayer.room.onMessage("player_projectile_spawned", (data) => {
+        if (!isCurrentScene()) return;
         const tex = data.projConfig && data.projConfig.texture ? data.projConfig.texture : 'arrow';
         const arrow = this.projectiles.create(data.x, data.y, tex);
         arrow.projConfig = data.projConfig;
@@ -848,6 +1080,31 @@ export default class GameScene extends Phaser.Scene {
         
         this.time.delayedCall(2000, () => {
           if (arrow && arrow.scene) arrow.destroy();
+        });
+      });
+
+      // 10. Synchronized Map Transition listener (all players transition together)
+      multiplayer.room.onMessage("change_level", (data) => {
+        if (!isCurrentScene()) return;
+        if (data && data.targetMap) {
+          this.performMapTransition(data.targetMap);
+        }
+      });
+
+      // 11. Mission Complete listener (all players see the UI)
+      multiplayer.room.onMessage("mission_complete", () => {
+        if (!isCurrentScene()) return;
+        const overlay = document.getElementById('mission-complete-overlay');
+        const subText = document.getElementById('mission-sub-text');
+        if (overlay) {
+          if (subText) subText.innerText = `LEVEL ${this.currentLevelNum} CLEARED!`;
+          overlay.style.display = 'flex';
+        }
+
+        this.showFloatingText(this.player.x, this.player.y - 40, `Level Cleared! Enter Portal to proceed`, '#4ade80');
+
+        this.time.delayedCall(4500, () => {
+          if (overlay) overlay.style.display = 'none';
         });
       });
 
@@ -888,23 +1145,75 @@ export default class GameScene extends Phaser.Scene {
     }
     this.events.once('shutdown', () => {
       this.cleanUpHtmlTags();
+      // Invalidate all stale listeners from this scene instance
+      if (GameScene._sceneGeneration !== undefined) {
+        GameScene._sceneGeneration++;
+      }
+      // Destroy all remaining enemy sprites so they don't ghost
+      if (this.enemies) {
+        this.enemies.forEach(enemy => {
+          if (enemy && enemy.scene) {
+            if (enemy.uiContainer) { enemy.uiContainer.remove(); enemy.uiContainer = null; }
+            enemy.destroy();
+          }
+        });
+        this.enemies = [];
+      }
     });
+
+    this.isGameReady = false;
+    if (multiplayer.room) {
+      const waitOverlay = document.getElementById('waiting-overlay');
+      if (waitOverlay) waitOverlay.style.display = 'flex';
+      
+      multiplayer.room.send("map_loaded");
+      
+      const myGeneration = GameScene._sceneGeneration;
+      multiplayer.room.onMessage("all_players_ready", () => {
+        if (GameScene._sceneGeneration !== myGeneration) return;
+        if (waitOverlay) waitOverlay.style.display = 'none';
+        this.isGameReady = true;
+      });
+    } else {
+      this.isGameReady = true;
+    }
   }
 
   update(time, delta) {
-    if (this.isGameOver) return;
+    if (this.isGameOver || !this.isGameReady) return;
 
-    // Clean up dead enemies from logic array
-    this.enemies = this.enemies.filter(enemy => {
-      return enemy.hp > 0 || enemy.anims.isPlaying;
-    });
+    // Clean up destroyed enemies from logic array
+    this.enemies = this.enemies.filter(enemy => enemy && enemy.active && enemy.scene);
 
     // Count alive enemies for Wave progression (Host or Singleplayer only)
-    if (!multiplayer.room || multiplayer.isHost) {
+    if (multiplayer.isHost || !multiplayer.room) {
       const aliveEnemies = this.enemies.filter(e => e.hp > 0).length;
       if (aliveEnemies === 0 && this.currentWaveIndex < this.waves.length) {
         this.startWave(this.currentWaveIndex);
         this.currentWaveIndex++;
+      } else if (aliveEnemies === 0 && this.currentWaveIndex >= this.waves.length && this.waves.length > 0) {
+        // All waves cleared
+        if (!this.levelComplete) {
+          this.levelComplete = true;
+          
+          if (multiplayer.room) {
+            multiplayer.room.send("mission_complete", {});
+          } else {
+            // Crisp Top Floating HTML Mission Complete Banner for Singleplayer
+            const overlay = document.getElementById('mission-complete-overlay');
+            const subText = document.getElementById('mission-sub-text');
+            if (overlay) {
+              if (subText) subText.innerText = `LEVEL ${this.currentLevelNum} CLEARED!`;
+              overlay.style.display = 'flex';
+            }
+
+            this.showFloatingText(this.player.x, this.player.y - 40, `Level Cleared! Enter Portal to proceed`, '#4ade80');
+
+            this.time.delayedCall(4500, () => {
+              if (overlay) overlay.style.display = 'none';
+            });
+          }
+        }
       }
     }
 
@@ -1056,7 +1365,7 @@ export default class GameScene extends Phaser.Scene {
           // Melee attacks are now handled by animationupdate and processAttackHitbox
         }
       });
-    } else if (this.player.hp > 0) {
+    } else if (this.player.hp > 0 && !this.isDead) {
       // Player Movement
       let velocityX = 0;
       let velocityY = 0;
@@ -1109,10 +1418,12 @@ export default class GameScene extends Phaser.Scene {
       }
 
       if (multiplayer.room && !multiplayer.isHost) {
-        // Joiners - Smooth position interpolation (lerp)
+        // Joiners - skip dead/dying enemies entirely
+        if (enemy.isDying || enemy.hp <= 0) return;
+        // Smooth position interpolation (lerp)
         if (enemy.targetX !== undefined) {
-          enemy.x += (enemy.targetX - enemy.x) * 0.15;
-          enemy.y += (enemy.targetY - enemy.y) * 0.15;
+          enemy.x += (enemy.targetX - enemy.x) * 0.25;
+          enemy.y += (enemy.targetY - enemy.y) * 0.25;
         }
         return; // Skip local AI simulation for Joiners
       }
@@ -1224,28 +1535,62 @@ export default class GameScene extends Phaser.Scene {
     
     // Sync to Multiplayer
     if (multiplayer.room) {
-      // 1. Lerp remote players' positions smoothly on local client
+      // 1. Lerp remote players' positions smoothly on local client with action animation protection
       this.remotePlayers.forEach((rp) => {
         if (rp.sprite && rp.sprite.active) {
-          rp.sprite.x += (rp.targetX - rp.sprite.x) * 0.15;
-          rp.sprite.y += (rp.targetY - rp.sprite.y) * 0.15;
+          rp.sprite.x += (rp.targetX - rp.sprite.x) * 0.25;
+          rp.sprite.y += (rp.targetY - rp.sprite.y) * 0.25;
+
+          if (rp.hp > 0) {
+            const charKey = rp.charKey || 'human';
+            const currentAnim = rp.sprite.anims.currentAnim ? rp.sprite.anims.currentAnim.key : '';
+            const isPlayingAction = rp.sprite.anims.isPlaying && currentAnim && !currentAnim.endsWith('_walk') && !currentAnim.endsWith('_idle');
+            
+            // Only manage locomotion (walk/idle) if the player is not currently performing an action (attack, hurt, death, etc.)
+            if (!isPlayingAction) {
+              const dist = Phaser.Math.Distance.Between(rp.sprite.x, rp.sprite.y, rp.targetX, rp.targetY);
+              const isMoving = rp.isMoving || dist > 2.0;
+              
+              if (isMoving) {
+                if (this.anims.exists(`${charKey}_walk`)) {
+                  rp.sprite.play(`${charKey}_walk`, true);
+                }
+              } else {
+                if (this.anims.exists(`${charKey}_idle`)) {
+                  rp.sprite.play(`${charKey}_idle`, true);
+                }
+              }
+            }
+          }
+
           if (rp.uiContainer) {
             this.updateHtmlEntityUI(rp.uiContainer, rp.sprite.x, rp.sprite.y, -18, rp.hp, rp.maxHp);
           }
         }
       });
 
-      // 2. Local player move sync
+      // 2. Local player move sync (send immediately on animation change, or throttled to 40ms during continuous movement)
       if (this.player.hp > 0 || this.isDead) {
-        let currentAnim = 'idle';
-        if (this.player.anims.currentAnim) {
-           currentAnim = this.player.anims.currentAnim.key;
-        }
-        const isMoving = this.player.body.velocity.x !== 0 || this.player.body.velocity.y !== 0;
-        let angle = 0;
-        if (this.player.flipX) angle = 180;
+        if (!this.lastMoveSentTime) this.lastMoveSentTime = 0;
+        const now = this.time.now;
         
-        multiplayer.sendMove(this.player.x, this.player.y, 0, angle, currentAnim, isMoving, this.player.hp, this.playerMaxHp);
+        const dx = Math.abs(this.player.x - (this.lastSentX || 0));
+        const dy = Math.abs(this.player.y - (this.lastSentY || 0));
+        const currentAnim = this.player.anims.currentAnim ? this.player.anims.currentAnim.key : 'idle';
+        const animChanged = currentAnim !== this.lastSentAnim;
+        
+        if (animChanged || (now - this.lastMoveSentTime > 40 && (dx > 0.5 || dy > 0.5 || now - this.lastMoveSentTime > 200))) {
+          const isMoving = this.player.body.velocity.x !== 0 || this.player.body.velocity.y !== 0;
+          let angle = 0;
+          if (this.player.flipX) angle = 180;
+          
+          multiplayer.sendMove(this.player.x, this.player.y, 0, angle, currentAnim, isMoving, this.player.hp, this.playerMaxHp);
+          
+          this.lastMoveSentTime = now;
+          this.lastSentX = this.player.x;
+          this.lastSentY = this.player.y;
+          this.lastSentAnim = currentAnim;
+        }
       }
 
       // 3. Host enemy sync to server
@@ -1698,6 +2043,10 @@ export default class GameScene extends Phaser.Scene {
     const container = document.getElementById('html-name-tags');
     if (container) {
       container.innerHTML = '';
+    }
+    const missionOverlay = document.getElementById('mission-complete-overlay');
+    if (missionOverlay) {
+      missionOverlay.style.display = 'none';
     }
   }
 }

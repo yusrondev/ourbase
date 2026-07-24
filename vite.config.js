@@ -94,6 +94,44 @@ function mapEditorApiPlugin() {
           }
         });
       });
+      // GET /api/levels — get all levels configurations
+      server.middlewares.use('/api/levels', (req, res, next) => {
+        if (req.method !== 'GET') { next(); return; }
+        if (req.url !== '/') { next(); return; } // Match exactly /api/levels
+        try {
+          const filePath = path.join(__dirname, 'public', 'levels.json');
+          if (fs.existsSync(filePath)) {
+            const data = fs.readFileSync(filePath, 'utf-8');
+            res.setHeader('Content-Type', 'application/json');
+            res.end(data);
+          } else {
+            res.setHeader('Content-Type', 'application/json');
+            res.end('[]');
+          }
+        } catch (e) {
+          res.statusCode = 500;
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+
+      // POST /api/levels/save — save levels configuration
+      server.middlewares.use('/api/levels/save', (req, res, next) => {
+        if (req.method !== 'POST') { next(); return; }
+        let body = '';
+        req.on('data', d => body += d);
+        req.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            const filePath = path.join(__dirname, 'public', 'levels.json');
+            fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ ok: true }));
+          } catch (e) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+      });
     }
   };
 }

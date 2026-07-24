@@ -31,6 +31,7 @@ defineTypes(Player, {
   anim: "string",
   isMoving: "boolean",
   isHost: "boolean",
+  isLoaded: "boolean",
   hp: "number",
   maxHp: "number",
 });
@@ -72,6 +73,18 @@ class GameRoom extends Room {
     this.roomId = Math.floor(1000 + Math.random() * 9000).toString();
     this.setState(new GameRoomState());
 
+    this.checkAllPlayersReady = () => {
+      let allReady = true;
+      let count = 0;
+      this.state.players.forEach((p) => {
+        count++;
+        if (!p.isLoaded) allReady = false;
+      });
+      if (count > 0 && allReady) {
+        this.broadcast("all_players_ready");
+      }
+    };
+
     this.onMessage("set_character", (client, data) => {
       const player = this.state.players.get(client.sessionId);
       if (player && data && data.character) {
@@ -93,6 +106,29 @@ class GameRoom extends Room {
       const player = this.state.players.get(client.sessionId);
       if (player && player.isHost && data && data.mapName) {
         this.state.mapName = data.mapName;
+      }
+    });
+
+    this.onMessage("change_level", (client, data) => {
+      if (data && data.targetMap) {
+        this.state.mapName = data.targetMap;
+        this.state.enemies.clear();
+        this.state.players.forEach((p) => {
+          p.isLoaded = false;
+        });
+        this.broadcast("change_level", { targetMap: data.targetMap });
+      }
+    });
+
+    this.onMessage("mission_complete", (client, data) => {
+      this.broadcast("mission_complete", data);
+    });
+
+    this.onMessage("map_loaded", (client) => {
+      const player = this.state.players.get(client.sessionId);
+      if (player) {
+        player.isLoaded = true;
+        this.checkAllPlayersReady();
       }
     });
 
@@ -194,8 +230,9 @@ class GameRoom extends Room {
       : `Player_${client.sessionId.substring(0, 4)}`;
     player.character = "human";
     player.x = 0; player.y = 0; player.z = 0;
-    player.angle = 0; player.anim = "idle";
+    player.anim = "idle";
     player.isMoving = false;
+    player.isLoaded = false;
     player.hp = 100;
     player.maxHp = 100;
 
@@ -220,11 +257,15 @@ class GameRoom extends Room {
         const newHostId = remaining[0];
         this.state.hostId = newHostId;
         const newHost = this.state.players.get(newHostId);
-        if (newHost) newHost.isHost = true;
+        if (newHost) {
+          newHost.isHost = true;
+          console.log(`[Colyseus] Player (${newHostId}) is the new Host`);
+        }
       } else {
         this.state.hostId = "";
       }
     }
+    this.checkAllPlayersReady();
   }
 
   onDispose() {

@@ -21,13 +21,25 @@
       "bodyW": 17.77777777777777,
       "bodyH": 26.111111111111114,
       "offsetX": 43.44444444444445,
-      "offsetY": 98.99999999999999
+      "offsetY": 98.99999999999999,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
     },
     "hurt": {
       "bodyW": 17.77777777777777,
       "bodyH": 30.555555555555557,
       "offsetX": 52.33333333333334,
       "offsetY": 92.88888888888889
+    },
+    "stats": {
+      "hp": 50,
+      "attack": 30,
+      "speed": 210,
+      "attackType": "melee",
+      "attackRange": 0
     }
   },
   "lyra": {
@@ -239,9 +251,9 @@
     },
     "idle": {
       "bodyW": 10.416666666666671,
-      "bodyH": 23.333333333333336,
+      "bodyH": 17.083333333333336,
       "offsetX": 96.66666666666666,
-      "offsetY": 98.75,
+      "offsetY": 105,
       "attackW": 40,
       "attackH": 40,
       "attackOx": 0,
@@ -250,14 +262,56 @@
     },
     "walk": {
       "bodyW": 10.416666666666671,
-      "bodyH": 23.333333333333336,
+      "bodyH": 14.583333333333337,
       "offsetX": 96.66666666666666,
-      "offsetY": 98.75,
+      "offsetY": 107.5,
       "attackW": 40,
       "attackH": 40,
       "attackOx": 0,
       "attackOy": 0,
       "attackFrame": 1
+    }
+  },
+  "sakai": {
+    "stats": {
+      "hp": 100,
+      "attack": 25,
+      "speed": 180,
+      "attackType": "melee",
+      "attackRange": 0
+    },
+    "idle": {
+      "bodyW": 8.88888888888889,
+      "bodyH": 8.65384615384615,
+      "offsetX": 44.51709401709402,
+      "offsetY": 73.76923076923076,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    },
+    "walk": {
+      "bodyW": 9.722222222222221,
+      "bodyH": 11.538461538461537,
+      "offsetX": 48.598290598290596,
+      "offsetY": 69.45299145299145,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    },
+    "attack": {
+      "bodyW": 16.666666666666668,
+      "bodyH": 32.82051282051282,
+      "offsetX": 39.794871794871796,
+      "offsetY": 48.76923076923077,
+      "attackW": 55.38461538461539,
+      "attackH": 34.35897435897436,
+      "attackOx": 37.692307692307686,
+      "attackOy": 48.46153846153845,
+      "attackFrame": 5
     }
   }
 }

@@ -63,12 +63,7 @@ export default class SelectionScene extends Phaser.Scene {
       });
     });
 
-    // Preview Sprite centered in the transparent left 35% of the screen
-    // 35% of width is the preview zone, so middle is width * 0.175
-    const initialConfig = CHARACTER_CONFIG[this.characters[this.currentIndex]];
-    this.previewSprite = this.add.sprite(width * 0.175, height * 0.38, initialConfig.singleSpritesheet ? `${this.characters[this.currentIndex]}_all` : `${this.characters[this.currentIndex]}_idle`);
-    this.previewSprite.setScale(3.5 * (initialConfig.scale || 1));
-    this.previewSprite.play(`${this.characters[this.currentIndex]}_idle`);
+    // Removed Preview Sprite rendering (UI now handles character description)
 
     // Handle Resize
     this.scale.on('resize', this.resizeUI, this);
@@ -79,17 +74,6 @@ export default class SelectionScene extends Phaser.Scene {
       const index = this.characters.indexOf(key);
       if (index !== -1) {
         this.currentIndex = index;
-        const config = CHARACTER_CONFIG[key];
-        
-        this.previewSprite.setTexture(config.singleSpritesheet ? `${key}_all` : `${key}_idle`);
-        this.previewSprite.play(`${key}_idle`);
-        
-        // Re-scale on change
-        const width = this.cameras.main.width;
-        const height = this.cameras.main.height;
-        const baseScale = (config.scale || 1);
-        const responsiveScale = (height / 720) * 4.5;
-        this.previewSprite.setScale(baseScale * Math.max(1.8, responsiveScale));
       }
     };
 
@@ -108,15 +92,7 @@ export default class SelectionScene extends Phaser.Scene {
     this.cameras.main.setViewport(0, 0, width, height);
 
     if (this.bg) {
-      this.bg.setDisplaySize(width, height);
-      
-      // Update preview sprite position based on layout
-      this.previewSprite.setPosition(width * 0.175, height * 0.38);
-      
-      const config = CHARACTER_CONFIG[this.characters[this.currentIndex]];
-      const baseScale = (config.scale || 1);
-      const responsiveScale = (height / 720) * 4.5;
-      this.previewSprite.setScale(baseScale * Math.max(1.8, responsiveScale));
+      this.bg.setSize(width, height);
     }
   }
 }

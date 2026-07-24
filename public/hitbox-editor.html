@@ -235,25 +235,8 @@ import { CHARACTER_CONFIG } from '/src/config/characters.js';
 //  Loads spritesheet, animates, shows editable hitbox
 // ══════════════════════════════════════════════════════
 
-// All characters from characters.js (mirrored here)
-const CHARS = {
-  lucien:{name:'Lucien',role:'player',folder:'lucien',frameWidth:128,frameHeight:128,scale:0.6,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:5,rate:12},death:{frames:4,rate:8},hurt:{frames:2,rate:8}}},
-  human:{name:'Darius',role:'player',folder:'human',frameWidth:96,frameHeight:96,scale:2,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:6,rate:12},death:{frames:6,rate:8},hurt:{frames:4,rate:8}}},
-  soldier2:{name:'Victor',role:'player',folder:'soldier2',frameWidth:100,frameHeight:100,scale:2,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:6,rate:12},death:{frames:4,rate:8},hurt:{frames:4,rate:8}}},
-  slime:{name:'Slime',role:'enemy',folder:'slime',frameWidth:96,frameHeight:96,scale:2,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:6,rate:10},death:{frames:6,rate:8},hurt:{frames:4,rate:8}}},
-  blood:{name:'Blood',role:'enemy',folder:'blood',frameWidth:100,frameHeight:100,scale:2,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:8,rate:10},death:{frames:4,rate:8},hurt:{frames:4,rate:8}}},
-  demon:{name:'Demon',role:'enemy',folder:'demon',frameWidth:100,frameHeight:100,scale:2,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:7,rate:10},death:{frames:4,rate:8},hurt:{frames:4,rate:8}}},
-  orc:{name:'Orc',role:'enemy',folder:'orc',frameWidth:100,frameHeight:100,scale:2,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:7,rate:10},death:{frames:4,rate:8},hurt:{frames:4,rate:8}}},
-  kaizer:{name:'Kaizer',role:'enemy',folder:'kaizer',frameWidth:250,frameHeight:250,scale:1,animations:{idle:{frames:8,rate:8},walk:{frames:8,rate:10},attack:{frames:8,rate:10},death:{frames:7,rate:8},hurt:{frames:3,rate:8}}},
-  lunaria:{name:'Lunaria',role:'enemy',folder:'lunaria',frameWidth:140,frameHeight:140,scale:1,animations:{idle:{frames:10,rate:8},walk:{frames:8,rate:10},attack:{frames:13,rate:12},death:{frames:18,rate:10},hurt:{frames:3,rate:8}}},
-  monk:{name:'Monk',role:'player',folder:'monk',frameWidth:192,frameHeight:192,scale:0.5,animations:{idle:{frames:6,rate:8},walk:{frames:4,rate:10},heal:{frames:11,rate:10}}},
-  tank:{name:'Valgor',role:'player',folder:'tank',frameWidth:192,frameHeight:192,scale:0.5,animations:{idle:{frames:8,rate:8},walk:{frames:6,rate:10},attack:{frames:4,rate:8}}},
-  lyra:{name:'Lyra',role:'player',folder:'lyra',frameWidth:100,frameHeight:100,scale:1,animations:{idle:{frames:10,rate:8},walk:{frames:8,rate:10},attack:{frames:6,rate:12},hurt:{frames:3,rate:8},death:{frames:10,rate:8}}},
-  kael:{name:'Kael',role:'player',folder:'kael',frameWidth:180,frameHeight:180,scale:0.8,animations:{idle:{frames:11,rate:10},walk:{frames:8,rate:12},attack:{frames:7,rate:12},hurt:{frames:4,rate:8},death:{frames:11,rate:8}}},
-  lucifer:{name:'Lucifer',role:'player',folder:'lucifer',frameWidth:200,frameHeight:200,scale:0.8,animations:{idle:{frames:4,rate:8},walk:{frames:8,rate:12},attack:{frames:4,rate:12},hurt:{frames:3,rate:8},death:{frames:7,rate:8}}},
-  shifu:{name:'Shifu',role:'player',folder:'shifu',frameWidth:200,frameHeight:200,scale:0.8,animations:{idle:{frames:8,rate:8},walk:{frames:8,rate:12},attack:{frames:6,rate:15},hurt:{frames:4,rate:8},death:{frames:6,rate:8}}},
-  mystic:{name:'Mystic',role:'player',folder:'mystic',frameWidth:231,frameHeight:190,scale:0.6,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:12},attack:{frames:8,rate:12},hurt:{frames:4,rate:8},death:{frames:7,rate:8}}},
-};
+// All characters from characters.js
+const CHARS = JSON.parse(JSON.stringify(CHARACTER_CONFIG));
 
 const canvas = document.getElementById('ec');
 const ctx = canvas.getContext('2d');
