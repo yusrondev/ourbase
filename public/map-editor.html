@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Map Collision & Spawn Editor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0d0f14;--surface:#161a22;--surface2:#1e2430;--border:#2a3040;
+      --accent:#6c63ff;--green:#4ade80;--red:#f87171;--yellow:#fbbf24;
+      --orange:#fb923c;--purple:#a78bfa;--cyan:#22d3ee;--text:#e4e8f0;--muted:#6b7280;
+    }
+    body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+    header{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;row-gap:5px}
+    .logo{font-weight:700;font-size:13px;letter-spacing:.05em;color:var(--accent);white-space:nowrap}
+    .logo span{color:var(--text)}
+    .sep{width:1px;height:22px;background:var(--border);flex-shrink:0}
+    .tbtn{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+    .tbtn:hover{border-color:var(--accent);color:var(--text)}
+    .tbtn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+    .tbtn.danger{border-color:var(--red);color:var(--red)}.tbtn.danger:hover{background:var(--red);color:#fff}
+    .tbtn.success{border-color:var(--green);color:var(--green)}.tbtn.success:hover{background:var(--green);color:#000}
+    .tbtn.warn{border-color:var(--yellow);color:var(--yellow)}.tbtn.warn:hover{background:var(--yellow);color:#000}
+    .tbtn.save-btn{border-color:var(--cyan);color:var(--cyan);font-size:12px;padding:5px 14px}
+    .tbtn.save-btn:hover{background:var(--cyan);color:#000}
+    select{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 7px;font-family:'Outfit',sans-serif;font-size:11px;cursor:pointer}
+    .tw{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+    .tgl{position:relative;width:30px;height:16px}
+    .tgl input{opacity:0;width:0;height:0}
+    .sldr{position:absolute;inset:0;background:var(--border);border-radius:20px;cursor:pointer;transition:.2s}
+    .sldr::before{content:'';position:absolute;width:10px;height:10px;border-radius:50%;background:#fff;left:3px;top:3px;transition:.2s}
+    input:checked+.sldr{background:var(--accent)}
+    input:checked+.sldr::before{transform:translateX(14px)}
+    .main{display:flex;flex:1;overflow:hidden}
+
+    /* ── Sidebar ── */
+    aside{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+    .ss{padding:9px 10px 7px;border-bottom:1px solid var(--border);flex-shrink:0}
+    .st{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+    .ir{display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px}
+    .ir .lb{color:var(--muted)} .ir .vl{font-family:'JetBrains Mono',monospace;color:var(--text)}
+
+    /* Map list */
+    .map-list{flex-shrink:0;border-bottom:1px solid var(--border)}
+    .map-list-inner{max-height:160px;overflow-y:auto;padding:4px}
+    .map-item{display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:5px;cursor:pointer;font-size:11px;transition:background .15s}
+    .map-item:hover{background:var(--surface2)}
+    .map-item.active{background:#6c63ff22;color:var(--accent)}
+    .map-item .mi-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0}
+    .map-item .mi-dot.empty{background:var(--muted)}
+    .map-item .mi-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .map-item .mi-edit{opacity:0;font-size:10px;color:var(--muted);cursor:pointer;transition:opacity .15s}
+    .map-item:hover .mi-edit{opacity:1}
+    .map-actions{display:flex;gap:4px;padding:5px 8px;border-bottom:1px solid var(--border);flex-shrink:0}
+
+    /* Zone list */
+    .zl{flex:1;overflow-y:auto;padding:4px;display:flex;flex-direction:column;gap:2px}
+    .zi{display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:4px 6px;font-size:9px;transition:border-color .15s;cursor:pointer}
+    .zi:hover{border-color:var(--accent)}.zi.selected{border-color:var(--accent);background:#6c63ff22}
+    .zi .zl2{font-family:'JetBrains Mono',monospace;color:var(--text);font-size:9px}
+    .zdel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:1px 3px;border-radius:3px}
+    .zdel:hover{color:var(--red)}
+
+    .cw{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#1a1f2b 0% 25%,#141820 0% 50%) 0 0/22px 22px;position:relative}
+    #ec{display:block;image-rendering:pixelated;box-shadow:0 8px 40px #0008;cursor:crosshair}
+    input[type=range]{-webkit-appearance:none;appearance:none;height:3px;border-radius:4px;background:var(--border);outline:none;width:80px}
+    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer}
+    footer{display:flex;align-items:center;gap:12px;padding:3px 12px;background:var(--surface);border-top:1px solid var(--border);font-size:10px;color:var(--muted);flex-shrink:0}
+    #tt{position:fixed;pointer-events:none;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text);opacity:0;transition:opacity .1s;z-index:999}
+    #fi-upload{display:none}
+
+    /* Portal dialog */
+    .dialog-overlay{position:fixed;inset:0;background:#0009;z-index:1000;display:flex;align-items:center;justify-content:center}
+    .dialog{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;width:320px}
+    .dialog h3{font-size:14px;margin-bottom:14px;color:var(--cyan)}
+    .dialog label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
+    .dialog select, .dialog input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:5px 8px;font-size:11px;font-family:'Outfit',sans-serif;margin-bottom:10px}
+    .dialog-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+  </style>
+</head>
+<body>
+<div id="tt"></div>
+<header>
+  <div class="logo">⚔️ MAP <span>EDITOR</span></div>
+  <div class="sep"></div>
+  <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+    <button class="tbtn active" id="btn-rect" title="Rectangle (R)">⬜ Rect</button>
+    <button class="tbtn" id="btn-paint" title="Freehand Paint (P)">🖌 Paint</button>
+    <button class="tbtn" id="btn-erase-paint" title="Erase Paint (X)">⬛ Erase</button>
+    <button class="tbtn" id="btn-spawn-player" title="Player Spawn">📍 Player</button>
+    <button class="tbtn" id="btn-spawn-enemy" title="Enemy Spawn">👾 Enemy</button>
+    <button class="tbtn" id="btn-portal" title="Portal Zone (warp ke map lain)">🚪 Portal</button>
+    <button class="tbtn" id="btn-select" title="Select (S)">⬚ Select</button>
+    <button class="tbtn" id="btn-erase-rect" title="Erase Zone (E)">🗑 Del Zone</button>
+  </div>
+  <div class="sep"></div>
+  <div id="brush-wrap" style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
+    🖌 <input type="range" id="brush-size" min="1" max="40" value="8"/>
+    <span id="brush-val" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text);min-width:24px">8px</span>
+  </div>
+  <div class="sep"></div>
+  <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+    <button class="tbtn" data-color="red" style="background:#f8717133;border-color:#f87171;color:#f87171;font-size:10px">🔴 Block</button>
+    <button class="tbtn" data-color="blue" style="border-color:#60a5fa;color:#60a5fa;font-size:10px">🔵 Water</button>
+    <button class="tbtn" data-color="yellow" style="border-color:#fbbf24;color:#fbbf24;font-size:10px">🟡 Slow</button>
+  </div>
+  <div class="sep"></div>
+  <div class="tw">
+    <label>Grid</label>
+    <label class="tgl"><input type="checkbox" id="gtog" checked/><span class="sldr"></span></label>
+    <label>Snap</label>
+    <label class="tgl"><input type="checkbox" id="stog" checked/><span class="sldr"></span></label>
+  </div>
+  <div class="sep"></div>
+  <div style="display:flex;gap:4px;align-items:center">
+    <button class="tbtn" id="btn-undo">↩ Undo</button>
+    <button class="tbtn danger" id="btn-clear">🗑 Clear All</button>
+  </div>
+  <div class="sep"></div>
+  <button class="tbtn save-btn" id="btn-save">💾 Save</button>
+  <input type="file" id="fi-upload" accept="image/png,image/jpeg,image/webp"/>
+</header>
+
+<div class="main">
+  <!-- ── Sidebar ── -->
+  <aside>
+    <!-- Map List -->
+    <div class="ss map-list">
+      <div class="st">
+        Maps
+        <button class="tbtn" id="btn-refresh-maps" style="padding:2px 6px;font-size:9px">↻</button>
+      </div>
+      <div class="map-list-inner" id="map-list-items">
+        <div style="font-size:10px;color:var(--muted);padding:4px">Loading...</div>
+      </div>
+    </div>
+    <div class="map-actions">
+      <button class="tbtn success" id="btn-upload-map" style="flex:1;font-size:10px">+ Upload PNG</button>
+    </div>
+
+    <!-- Info -->
+    <div class="ss" style="flex-shrink:0">
+      <div class="st">Info</div>
+      <div class="ir"><span class="lb">World</span><span class="vl" id="iw">800×600</span></div>
+      <div class="ir"><span class="lb">Cursor</span><span class="vl" id="icur">—</span></div>
+      <div class="ir"><span class="lb">Grid</span><span class="vl" id="igrid">16px</span></div>
+      <div class="ir"><span class="lb">Zones</span><span class="vl" id="ict">0</span></div>
+    </div>
+    <!-- Grid Size -->
+    <div class="ss" style="flex-shrink:0">
+      <div class="st">Grid Size</div>
+      <div style="display:flex;gap:3px;flex-wrap:wrap">
+        <button class="tbtn" data-grid="4">4</button>
+        <button class="tbtn" data-grid="8">8</button>
+        <button class="tbtn active" data-grid="16">16</button>
+        <button class="tbtn" data-grid="32">32</button>
+      </div>
+    </div>
+    <!-- Zone list -->
+    <div style="padding:5px 8px 3px;border-top:1px solid var(--border);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">Objects (<span id="zct">0</span>)</div>
+    <div class="zl" id="zlist"></div>
+  </aside>
+
+  <div class="cw" id="cw"><canvas id="ec"></canvas></div>
+</div>
+
+<footer>
+  <span id="stmsg">Ready — selesai edit, klik 💾 Save</span>
+  <span style="margin-left:auto;color:var(--muted)">R=Rect P=Paint X=Erase S=Select E=DelZone G=Grid [/]=BrushSize</span>
+</footer>
+
+<!-- Portal Dialog -->
+<div class="dialog-overlay" id="portal-dialog" style="display:none">
+  <div class="dialog">
+    <h3>🚪 Portal Configuration</h3>
+    <label>Target Map (tujuan portal)</label>
+    <select id="portal-target-map"></select>
+    <label>Label (nama pintu)</label>
+    <input type="text" id="portal-label" placeholder="e.g. Dungeon Entrance"/>
+    <div class="dialog-btns">
+      <button class="tbtn" id="portal-cancel">Cancel</button>
+      <button class="tbtn active" id="portal-ok">Add Portal</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  MAP EDITOR v3 — Rect + Freehand Paint + Map List
+// ══════════════════════════════════════════════════════
+const canvas = document.getElementById('ec');
+const ctx = canvas.getContext('2d');
+const tt = document.getElementById('tt');
+
+let WORLD_W=800, WORLD_H=600, SCALE=1, GRID=16;
+let snapOn=true, gridOn=true;
+let tool='rect';
+let currentColor='red';
+let brushSize=8; // pixels in world space
+let currentMap=null; // { name, png, json }
+let allMaps=[]; // list from API
+
+// ── Rect / Spawn / Portal zones ──
+let zones=[];
+// Each zone: { x, y, w, h, type, color?, label?, targetMap? }
+
+// ── Freehand strokes ──
+let strokes=[]; // [ { color, size, points:[{x,y}] } ]
+
+let history=[], selIdx=-1;
+let isDrawRect=false, dStart=null, dCur=null;
+let isDrag=false, dragOfs={x:0,y:0};
+let isPainting=false, currentStroke=null;
+let isErasingPaint=false;
+
+let mapImg=null;
+
+const CMAP={
+  red:   {fill:'rgba(248,113,113,0.40)',stroke:'#f87171',label:'🔴 Block'},
+  blue:  {fill:'rgba(96,165,250,0.30)', stroke:'#60a5fa',label:'🔵 Water'},
+  yellow:{fill:'rgba(251,191,36,0.30)', stroke:'#fbbf24',label:'🟡 Slow'},
+  spawn_player:{fill:'rgba(74,222,128,0.45)',stroke:'#4ade80',label:'📍 Player'},
+  spawn_enemy: {fill:'rgba(167,139,250,0.45)',stroke:'#a78bfa',label:'👾 Enemy'},
+  portal:      {fill:'rgba(34,211,238,0.30)',stroke:'#22d3ee',label:'🚪 Portal'},
+};
+
+// ─── Canvas / Map Load ──────────────────────────
+function setupCanvas(){
+  const wrap=document.getElementById('cw');
+  const maxW=wrap.clientWidth-30, maxH=wrap.clientHeight-30;
+  SCALE=Math.min(maxW/WORLD_W, maxH/WORLD_H, 2);
+  canvas.width=Math.round(WORLD_W*SCALE);
+  canvas.height=Math.round(WORLD_H*SCALE);
+  document.getElementById('iw').textContent=`${WORLD_W}×${WORLD_H}`;
+  render();
+}
+function loadMapImage(src,cb){
+  const img=new Image();
+  img.onload=()=>{mapImg=img;setupCanvas();if(cb)cb();};
+  img.onerror=()=>{mapImg=null;setupCanvas();if(cb)cb();};
+  img.src=src+'?t='+Date.now();
+}
+function clearEditor(){
+  zones=[];strokes=[];selIdx=-1;history=[];
+  updateZoneList();render();
+}
+
+// ─── Map API ────────────────────────────────────
+async function fetchMaps(){
+  try{
+    const r=await fetch('/api/maps/list');
+    allMaps=await r.json();
+    renderMapList();
+  }catch(e){
+    document.getElementById('map-list-items').innerHTML='<div style="font-size:10px;color:var(--red);padding:4px">API unavailable</div>';
+  }
+}
+function renderMapList(){
+  const el=document.getElementById('map-list-items');
+  el.innerHTML='';
+  if(!allMaps.length){el.innerHTML='<div style="font-size:10px;color:var(--muted);padding:4px">No maps found</div>';return;}
+  allMaps.forEach(m=>{
+    const div=document.createElement('div');
+    div.className='map-item'+(currentMap&&currentMap.name===m.name?' active':'');
+    div.innerHTML=`<div class="mi-dot ${m.hasCollision?'':'empty'}"></div><div class="mi-name">${m.name}</div>`;
+    div.addEventListener('click',()=>selectMap(m));
+    el.appendChild(div);
+  });
+  // Also update portal target selects
+  document.getElementById('portal-target-map').innerHTML=allMaps.map(m=>`<option value="${m.name}">${m.name}</option>`).join('');
+}
+async function selectMap(m){
+  if(currentMap&&currentMap.name!==m.name){
+    if(zones.length||strokes.length){
+      if(!confirm('Ganti map? Data unsaved akan hilang!'))return;
+    }
+  }
+  currentMap=m;
+  clearEditor();
+  renderMapList();
+  loadMapImage(m.png,async()=>{
+    // Load collision JSON if exists
+    if(m.hasCollision){
+      try{
+        const r=await fetch(m.json+'?t='+Date.now());
+        const raw=await r.json();
+        importData(raw);
+      }catch{}
+    }
+    setStatus(`Map loaded: ${m.name}`);
+  });
+}
+
+async function saveMap(){
+  if(!currentMap){alert('Pilih map dulu dari list!');return;}
+  const data=exportData();
+  try{
+    const r=await fetch('/api/maps/save',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mapName:currentMap.name,data})
+    });
+    const j=await r.json();
+    if(j.ok){
+      setStatus(`✅ Saved → ${j.saved}`);
+      // refresh list (hasCollision may change)
+      fetchMaps();
+    } else {
+      setStatus(`❌ Save failed: ${j.error}`);
+    }
+  }catch(e){setStatus('❌ Save error: '+e.message);}
+}
+
+async function uploadMap(){
+  const input=document.getElementById('fi-upload');
+  input.click();
+}
+document.getElementById('fi-upload').addEventListener('change',async e=>{
+  const file=e.target.files[0];if(!file)return;
+  const rawName=file.name.replace(/\.[^.]+$/,'');
+  const safeName=rawName.replace(/[^a-zA-Z0-9_-]/g,'');
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    try{
+      const r=await fetch('/api/maps/upload',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({filename:safeName,base64:ev.target.result})
+      });
+      const j=await r.json();
+      if(j.ok){
+        await fetchMaps();
+        const found=allMaps.find(m=>m.name===j.name);
+        if(found)selectMap(found);
+        setStatus(`✅ Map uploaded: ${j.name}`);
+      }
+    }catch(err){setStatus('❌ Upload error: '+err.message);}
+  };
+  reader.readAsDataURL(file);
+  e.target.value='';
+});
+
+// ─── Data import/export ─────────────────────────
+function exportData(){
+  const rectData=zones.map(z=>({
+    x:Math.round(z.x),y:Math.round(z.y),
+    width:Math.round(z.w),height:Math.round(z.h),
+    type:z.type,
+    ...(z.label?{label:z.label}:{}),
+    ...(z.targetMap?{targetMap:z.targetMap}:{}),
+    source:'rect'
+  }));
+  // Save raw stroke data so editor can reload them exactly
+  const strokeData=strokes.map(s=>({
+    source:'stroke',
+    type:s.color,
+    size:s.size,
+    points:s.points.map(p=>({x:Math.round(p.x),y:Math.round(p.y)}))
+  }));
+  // Rasterize strokes to fine-grid rects for game physics
+  const paintRects=rasterizeStrokes();
+  return [...rectData,...strokeData,...paintRects];
+}
+function importData(raw){
+  zones=raw
+    .filter(z=>z.source==='rect'||!z.source)
+    .map(z=>({x:z.x,y:z.y,w:z.width,h:z.height,type:z.type,color:z.type,label:z.label,targetMap:z.targetMap}));
+  // Restore strokes from raw stroke entries (NOT from rasterized paint rects)
+  strokes=raw
+    .filter(z=>z.source==='stroke')
+    .map(s=>({color:s.type||'red',size:s.size||8,points:s.points||[]}));
+  // 'paint' rects are ignored in editor — they are auto-regenerated on next Save
+  selIdx=-1;updateZoneList();render();
+}
+
+// ─── Freehand stroke rasterize → fine-grid rectangles ───
+// Uses 4px cells for accurate collision — much closer to visual stroke width
+function rasterizeStrokes(){
+  if(!strokes.length)return[];
+  const FINE=4; // 4px rasterization grid — accurate, independent of display GRID
+  const colorMasks={};
+  strokes.forEach(s=>{
+    if(!colorMasks[s.color]){
+      const oc=document.createElement('canvas');
+      oc.width=WORLD_W;oc.height=WORLD_H;
+      colorMasks[s.color]={canvas:oc,ctx:oc.getContext('2d')};
+    }
+    const oct=colorMasks[s.color].ctx;
+    oct.lineCap='round';oct.lineJoin='round';
+    oct.strokeStyle='#000';
+    oct.lineWidth=s.size;
+    if(s.points.length<2){
+      oct.fillStyle='#000';
+      oct.beginPath();oct.arc(s.points[0].x,s.points[0].y,s.size/2,0,Math.PI*2);oct.fill();
+    } else {
+      oct.beginPath();oct.moveTo(s.points[0].x,s.points[0].y);
+      s.points.slice(1).forEach(p=>oct.lineTo(p.x,p.y));
+      oct.stroke();
+    }
+  });
+  const rects=[];
+  Object.entries(colorMasks).forEach(([color,{canvas:oc}])=>{
+    const oct=oc.getContext('2d');
+    const imgd=oct.getImageData(0,0,WORLD_W,WORLD_H);
+    const data=imgd.data;
+    const cols=Math.ceil(WORLD_W/FINE),rows=Math.ceil(WORLD_H/FINE);
+    // mark fine cells
+    const grid=Array.from({length:rows},()=>new Array(cols).fill(false));
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        let hit=false;
+        outer:for(let py=r*FINE;py<Math.min((r+1)*FINE,WORLD_H);py++){
+          for(let px=c*FINE;px<Math.min((c+1)*FINE,WORLD_W);px++){
+            if(data[(py*WORLD_W+px)*4+3]>10){hit=true;break outer;}
+          }
+        }
+        grid[r][c]=hit;
+      }
+    }
+    // row-merge then vertical merge
+    const spans=[];
+    grid.forEach((row,r)=>{
+      let c=0;
+      while(c<cols){
+        if(!row[c]){c++;continue;}
+        const start=c;
+        while(c<cols&&row[c])c++;
+        spans.push({r,c:start,len:c-start});
+      }
+    });
+    const used=new Set();
+    spans.forEach((sp,i)=>{
+      if(used.has(i))return;
+      let h=1;used.add(i);
+      let j=i+1;
+      while(j<spans.length){
+        const nx=spans[j];
+        if(nx.r===sp.r+h&&nx.c===sp.c&&nx.len===sp.len){used.add(j);h++;}
+        else if(nx.r>sp.r+h)break;
+        j++;
+      }
+      rects.push({x:sp.c*FINE,y:sp.r*FINE,width:sp.len*FINE,height:h*FINE,type:color,source:'paint'});
+    });
+  });
+  return rects;
+}
+
+// ─── Coordinates ───────────────────────────────
+function canvasToWorld(cx,cy){
+  let wx=cx/SCALE, wy=cy/SCALE;
+  if(snapOn){wx=Math.round(wx/GRID)*GRID; wy=Math.round(wy/GRID)*GRID;}
+  return{x:Math.max(0,Math.min(WORLD_W,wx)),y:Math.max(0,Math.min(WORLD_H,wy))};
+}
+function rawWorld(cx,cy){return{x:cx/SCALE,y:cy/SCALE};}
+function rectFromPts(a,b){return{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),w:Math.abs(a.x-b.x),h:Math.abs(a.y-b.y)};}
+function hitZone(wx,wy){
+  for(let i=zones.length-1;i>=0;i--){
+    const z=zones[i];
+    if(wx>=z.x&&wx<=z.x+z.w&&wy>=z.y&&wy<=z.y+z.h)return i;
+  }
+  return -1;
+}
+function hitStrokeAt(wx,wy){
+  const r=brushSize/2+4;
+  for(let i=strokes.length-1;i>=0;i--){
+    for(const p of strokes[i].points){
+      if(Math.hypot(p.x-wx,p.y-wy)<r)return i;
+    }
+  }
+  return -1;
+}
+
+// ─── Render ────────────────────────────────────
+function render(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if(mapImg){ctx.drawImage(mapImg,0,0,canvas.width,canvas.height);}
+  else{
+    ctx.fillStyle='#1a2030';ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#2a3040';ctx.font='13px Outfit';ctx.textAlign='center';
+    ctx.fillText('No map loaded — upload PNG dari sidebar',canvas.width/2,canvas.height/2);
+  }
+
+  // Strokes
+  strokes.forEach(s=>{
+    if(!s.points.length)return;
+    const cm=CMAP[s.color]||CMAP.red;
+    ctx.save();
+    ctx.scale(SCALE,SCALE);
+    ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.strokeStyle=cm.stroke.replace(')',',0.7)').replace('rgb','rgba');
+    ctx.lineWidth=s.size;
+    ctx.shadowColor=cm.stroke;ctx.shadowBlur=3;
+    if(s.points.length===1){
+      ctx.fillStyle=cm.stroke+'aa';
+      ctx.beginPath();ctx.arc(s.points[0].x,s.points[0].y,s.size/2,0,Math.PI*2);ctx.fill();
+    } else {
+      ctx.beginPath();ctx.moveTo(s.points[0].x,s.points[0].y);
+      s.points.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+
+  // Grid
+  if(gridOn){
+    ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=0.5;
+    const gx=GRID*SCALE;
+    for(let x=0;x<=canvas.width;x+=gx){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke();}
+    for(let y=0;y<=canvas.height;y+=gx){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke();}
+  }
+
+  // Rect zones
+  ctx.textBaseline='middle';
+  zones.forEach((z,i)=>{
+    const cm=CMAP[z.type||z.color]||CMAP.red;
+    const cx=z.x*SCALE,cy=z.y*SCALE,cw=z.w*SCALE,ch=z.h*SCALE;
+    if(z.type==='spawn_player'||z.type==='spawn_enemy'){
+      ctx.fillStyle=cm.fill;
+      ctx.beginPath();ctx.arc(cx+cw/2,cy+ch/2,Math.max(cw,ch)/2,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=i===selIdx?'#fff':cm.stroke;ctx.lineWidth=i===selIdx?2:1.5;ctx.stroke();
+      ctx.font=`${Math.max(11,cw*.55)}px Arial`;ctx.textAlign='center';
+      ctx.fillText(z.type==='spawn_player'?'📍':'👾',cx+cw/2,cy+ch/2);
+    } else if(z.type==='portal'){
+      ctx.fillStyle=cm.fill;ctx.fillRect(cx,cy,cw,ch);
+      ctx.strokeStyle=i===selIdx?'#fff':cm.stroke;ctx.lineWidth=i===selIdx?2:1.5;
+      ctx.setLineDash([5,3]);ctx.strokeRect(cx+.5,cy+.5,cw-1,ch-1);ctx.setLineDash([]);
+      ctx.font=`${Math.min(13,ch*.5)}px Arial`;ctx.textAlign='center';
+      ctx.fillText('🚪',cx+cw/2,cy+ch/2);
+      if(z.label&&cw>40){
+        ctx.font=`9px JetBrains Mono`;ctx.fillStyle=cm.stroke;
+        ctx.fillText(z.label,cx+cw/2,cy+ch/2+12);
+      }
+    } else {
+      ctx.fillStyle=cm.fill;ctx.fillRect(cx,cy,cw,ch);
+      ctx.strokeStyle=i===selIdx?'#fff':cm.stroke;
+      ctx.lineWidth=i===selIdx?2:1.5;ctx.setLineDash([]);
+      ctx.strokeRect(cx+.5,cy+.5,cw-1,ch-1);
+      if(cw>24&&ch>12){
+        ctx.fillStyle=cm.stroke;
+        ctx.font=`${Math.min(10,ch*.45)}px JetBrains Mono`;
+        ctx.textAlign='center';ctx.fillText('#'+(i+1),cx+cw/2,cy+ch/2);
+      }
+    }
+  });
+
+  // Rect preview
+  if(isDrawRect&&dStart&&dCur){
+    const r=rectFromPts(dStart,dCur);
+    const cm=CMAP[currentColor];
+    ctx.fillStyle=cm.fill;ctx.fillRect(r.x*SCALE,r.y*SCALE,r.w*SCALE,r.h*SCALE);
+    ctx.strokeStyle=cm.stroke;ctx.lineWidth=2;ctx.setLineDash([4,3]);
+    ctx.strokeRect(r.x*SCALE+1,r.y*SCALE+1,r.w*SCALE-2,r.h*SCALE-2);ctx.setLineDash([]);
+  }
+}
+
+// ─── Zone list UI ───────────────────────────────
+function updateZoneList(){
+  const list=document.getElementById('zlist');
+  document.getElementById('zct').textContent=zones.length;
+  document.getElementById('ict').textContent=zones.length+' zones, '+strokes.length+' strokes';
+  list.innerHTML='';
+  zones.forEach((z,i)=>{
+    const cm=CMAP[z.type||z.color]||CMAP.red;
+    const item=document.createElement('div');
+    item.className='zi'+(i===selIdx?' selected':'');
+    const extra=z.targetMap?` → ${z.targetMap}`:'';
+    item.innerHTML=`<span class="zl2" style="color:${cm.stroke}">${cm.label}${extra}<br><span style="color:#6b7280">${Math.round(z.x)},${Math.round(z.y)} ${Math.round(z.w)}×${Math.round(z.h)}</span></span><button class="zdel" data-idx="${i}">×</button>`;
+    item.addEventListener('click',e=>{if(e.target.dataset.idx!=null)return;selIdx=i;updateZoneList();render();});
+    list.appendChild(item);
+  });
+  list.querySelectorAll('.zdel').forEach(b=>{
+    b.addEventListener('click',e=>{
+      e.stopPropagation();pushH();zones.splice(parseInt(b.dataset.idx),1);
+      if(selIdx>=zones.length)selIdx=-1;updateZoneList();render();
+    });
+  });
+}
+
+// ─── History ────────────────────────────────────
+function pushH(){
+  history.push({zones:JSON.stringify(zones),strokes:JSON.stringify(strokes)});
+  if(history.length>60)history.shift();
+}
+function undo(){
+  if(!history.length)return;
+  const s=history.pop();
+  zones=JSON.parse(s.zones);strokes=JSON.parse(s.strokes);
+  selIdx=-1;updateZoneList();render();setStatus('Undone');
+}
+
+function setStatus(m){document.getElementById('stmsg').textContent=m;}
+
+// ─── Tool ──────────────────────────────────────
+function setTool(t){
+  tool=t;
+  ['rect','paint','erase-paint','spawn-player','spawn-enemy','portal','select','erase-rect'].forEach(id=>{
+    document.getElementById('btn-'+id).classList.toggle('active',id===t);
+  });
+  const curs={rect:'crosshair',paint:'crosshair','erase-paint':'crosshair','spawn-player':'crosshair','spawn-enemy':'crosshair',portal:'crosshair',select:'default','erase-rect':'not-allowed'};
+  canvas.style.cursor=curs[t]||'crosshair';
+  document.getElementById('brush-wrap').style.opacity=(t==='paint'||t==='erase-paint')?'1':'0.35';
+  const msgs={
+    rect:'Rect mode — klik & drag gambar area collision',
+    paint:'Paint Freehand — drag bebas seperti spidol 🖌',
+    'erase-paint':'Erase Paint — hapus bagian cat (klik titik/zona cat)',
+    'spawn-player':'Player Spawn — klik untuk letakkan titik respawn player',
+    'spawn-enemy':'Enemy Spawn — klik untuk letakkan titik spawn musuh',
+    portal:'Portal Zone — klik & drag area pintu ke map lain',
+    select:'Select — klik pilih, drag untuk pindah zone',
+    'erase-rect':'Delete Zone — klik zone untuk hapus'
+  };
+  setStatus(msgs[t]||t);
+}
+
+// ─── Canvas events ──────────────────────────────
+function cvPos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+
+canvas.addEventListener('mousedown',e=>{
+  const cp=cvPos(e),rw=rawWorld(cp.x,cp.y),sw=canvasToWorld(cp.x,cp.y);
+  if(tool==='rect'){isDrawRect=true;dStart={...sw};dCur={...sw};}
+  else if(tool==='portal'){isDrawRect=true;dStart={...sw};dCur={...sw};}
+  else if(tool==='spawn-player'||tool==='spawn-enemy'){
+    pushH();
+    const type=tool==='spawn-player'?'spawn_player':'spawn_enemy';
+    const sz=GRID*2;
+    zones.push({x:sw.x-sz/2,y:sw.y-sz/2,w:sz,h:sz,type,color:type});
+    updateZoneList();render();setStatus('Spawn added');
+  } else if(tool==='paint'){
+    pushH();isPainting=true;
+    currentStroke={color:currentColor,size:brushSize,points:[{...rw}]};
+    strokes.push(currentStroke);render();
+  } else if(tool==='erase-paint'){
+    pushH();isErasingPaint=true;
+    eraseStrokeAt(rw.x,rw.y);render();
+  } else if(tool==='erase-rect'){
+    const idx=hitZone(sw.x,sw.y);
+    if(idx!==-1){pushH();zones.splice(idx,1);if(selIdx>=zones.length)selIdx=-1;updateZoneList();render();}
+  } else if(tool==='select'){
+    const idx=hitZone(sw.x,sw.y);selIdx=idx;
+    if(idx!==-1){isDrag=true;dragOfs={x:sw.x-zones[idx].x,y:sw.y-zones[idx].y};}
+    updateZoneList();render();
+  }
+});
+
+canvas.addEventListener('mousemove',e=>{
+  const cp=cvPos(e),rw=rawWorld(cp.x,cp.y),sw=canvasToWorld(cp.x,cp.y);
+  tt.style.left=(e.clientX+14)+'px';tt.style.top=(e.clientY-8)+'px';tt.style.opacity='1';
+  tt.textContent=`${Math.round(rw.x)}, ${Math.round(rw.y)}`;
+  document.getElementById('icur').textContent=`${Math.round(rw.x)}, ${Math.round(rw.y)}`;
+
+  if((tool==='rect'||tool==='portal')&&isDrawRect){dCur={...sw};render();}
+  else if(tool==='paint'&&isPainting&&currentStroke){
+    currentStroke.points.push({...rw});render();
+  } else if(tool==='erase-paint'&&isErasingPaint){
+    eraseStrokeAt(rw.x,rw.y);render();
+  } else if(tool==='select'&&isDrag&&selIdx!==-1){
+    zones[selIdx].x=Math.max(0,sw.x-dragOfs.x);
+    zones[selIdx].y=Math.max(0,sw.y-dragOfs.y);
+    updateZoneList();render();
+  }
+});
+
+canvas.addEventListener('mouseup',e=>{
+  const cp=cvPos(e),sw=canvasToWorld(cp.x,cp.y);
+  if((tool==='rect'||tool==='portal')&&isDrawRect){
+    isDrawRect=false;
+    if(dStart&&dCur){
+      const r=rectFromPts(dStart,dCur);
+      if(r.w>=4&&r.h>=4){
+        pushH();
+        if(tool==='portal'){
+          // Open portal dialog
+          pendingPortalRect={...r};
+          showPortalDialog();
+        } else {
+          zones.push({x:r.x,y:r.y,w:r.w,h:r.h,color:currentColor,type:currentColor});
+          updateZoneList();setStatus(`Zone added (${Math.round(r.x)},${Math.round(r.y)})`);
+        }
+      }
+    }
+    dStart=null;dCur=null;render();
+  }
+  if(tool==='paint'&&isPainting){isPainting=false;currentStroke=null;updateZoneList();}
+  if(tool==='erase-paint'&&isErasingPaint){isErasingPaint=false;}
+  if(isDrag){isDrag=false;pushH();}
+});
+
+canvas.addEventListener('mouseleave',()=>{
+  tt.style.opacity='0';document.getElementById('icur').textContent='—';
+  isPainting=false;isErasingPaint=false;currentStroke=null;
+});
+
+function eraseStrokeAt(wx,wy){
+  const r=Math.max(brushSize,10);
+  strokes=strokes.filter(s=>{
+    // remove points near cursor, if all points removed, remove stroke
+    s.points=s.points.filter(p=>Math.hypot(p.x-wx,p.y-wy)>r);
+    return s.points.length>0;
+  });
+  updateZoneList();
+}
+
+// ─── Portal dialog ─────────────────────────────
+let pendingPortalRect=null;
+function showPortalDialog(){
+  // Populate map list in select
+  const sel=document.getElementById('portal-target-map');
+  sel.innerHTML=allMaps.filter(m=>!currentMap||m.name!==currentMap.name).map(m=>`<option value="${m.name}">${m.name}</option>`).join('');
+  document.getElementById('portal-label').value='';
+  document.getElementById('portal-dialog').style.display='flex';
+}
+document.getElementById('portal-cancel').addEventListener('click',()=>{
+  document.getElementById('portal-dialog').style.display='none';
+  pendingPortalRect=null;render();
+});
+document.getElementById('portal-ok').addEventListener('click',()=>{
+  if(!pendingPortalRect)return;
+  const targetMap=document.getElementById('portal-target-map').value;
+  const label=document.getElementById('portal-label').value||targetMap;
+  zones.push({x:pendingPortalRect.x,y:pendingPortalRect.y,w:pendingPortalRect.w,h:pendingPortalRect.h,type:'portal',targetMap,label});
+  document.getElementById('portal-dialog').style.display='none';
+  pendingPortalRect=null;
+  updateZoneList();render();setStatus(`Portal → ${targetMap} added`);
+});
+
+// ─── Toolbar events ─────────────────────────────
+document.getElementById('btn-rect').addEventListener('click',()=>setTool('rect'));
+document.getElementById('btn-paint').addEventListener('click',()=>setTool('paint'));
+document.getElementById('btn-erase-paint').addEventListener('click',()=>setTool('erase-paint'));
+document.getElementById('btn-spawn-player').addEventListener('click',()=>setTool('spawn-player'));
+document.getElementById('btn-spawn-enemy').addEventListener('click',()=>setTool('spawn-enemy'));
+document.getElementById('btn-portal').addEventListener('click',()=>setTool('portal'));
+document.getElementById('btn-select').addEventListener('click',()=>setTool('select'));
+document.getElementById('btn-erase-rect').addEventListener('click',()=>setTool('erase-rect'));
+document.getElementById('btn-undo').addEventListener('click',undo);
+document.getElementById('btn-save').addEventListener('click',saveMap);
+document.getElementById('btn-refresh-maps').addEventListener('click',fetchMaps);
+document.getElementById('btn-upload-map').addEventListener('click',uploadMap);
+document.getElementById('btn-clear').addEventListener('click',()=>{
+  if(!zones.length&&!strokes.length)return;
+  if(!confirm('Clear semua zone dan paint?'))return;
+  pushH();zones=[];strokes=[];selIdx=-1;updateZoneList();render();setStatus('Cleared');
+});
+document.getElementById('gtog').addEventListener('change',e=>{gridOn=e.target.checked;render();});
+document.getElementById('stog').addEventListener('change',e=>{snapOn=e.target.checked;});
+const bsz=document.getElementById('brush-size');
+bsz.addEventListener('input',()=>{brushSize=parseInt(bsz.value);document.getElementById('brush-val').textContent=brushSize+'px';});
+document.querySelectorAll('[data-grid]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    GRID=parseInt(btn.dataset.grid);
+    document.getElementById('igrid').textContent=GRID+'px';
+    document.querySelectorAll('[data-grid]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');render();
+  });
+});
+document.querySelectorAll('[data-color]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    currentColor=btn.dataset.color;
+    document.querySelectorAll('[data-color]').forEach(b=>b.style.fontWeight='');
+    btn.style.fontWeight='700';
+  });
+});
+
+// ─── Keyboard ───────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||document.getElementById('portal-dialog').style.display!=='none')return;
+  if(e.ctrlKey&&e.key==='z'){undo();return;}
+  if(e.ctrlKey&&e.key==='s'){e.preventDefault();saveMap();return;}
+  if(e.key==='r'||e.key==='R')setTool('rect');
+  if(e.key==='p'||e.key==='P')setTool('paint');
+  if(e.key==='x'||e.key==='X')setTool('erase-paint');
+  if(e.key==='e'||e.key==='E')setTool('erase-rect');
+  if(e.key==='s'||e.key==='S')setTool('select');
+  if(e.key==='g'||e.key==='G'){const t=document.getElementById('gtog');t.checked=!t.checked;gridOn=t.checked;render();}
+  if(e.key==='Delete'&&selIdx!==-1){pushH();zones.splice(selIdx,1);selIdx=-1;updateZoneList();render();}
+  if(e.key==='['&&brushSize>1){brushSize=Math.max(1,brushSize-2);bsz.value=brushSize;document.getElementById('brush-val').textContent=brushSize+'px';}
+  if(e.key===']'&&brushSize<40){brushSize=Math.min(40,brushSize+2);bsz.value=brushSize;document.getElementById('brush-val').textContent=brushSize+'px';}
+});
+
+window.addEventListener('resize',()=>setupCanvas());
+
+// ─── Init ───────────────────────────────────────
+fetchMaps().then(()=>{
+  if(allMaps.length>0)selectMap(allMaps[0]);
+  else setupCanvas();
+});
+setTool('rect');
+</script>
+</body>
+</html>

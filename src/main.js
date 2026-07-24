@@ -39,7 +39,7 @@ const game = new Phaser.Game(config);
 
 // --- Hero Selection Logic ---
 let activeHeroKey = 'lucien';
-const selectableHeroKeys = Object.keys(CHARACTER_CONFIG).filter(key => CHARACTER_CONFIG[key].name);
+const selectableHeroKeys = Object.keys(CHARACTER_CONFIG).filter(key => CHARACTER_CONFIG[key].role);
 
 function updateHeroDetails(key) {
   const config = CHARACTER_CONFIG[key];
@@ -278,18 +278,5 @@ btnJoin.addEventListener('click', async () => {
     btnJoin.disabled = false;
     btnJoin.innerText = '🔑 JOIN ROOM';
     showError('Room not found or full!');
-  }
-});
-
-// Copy Room Code event listener
-document.getElementById('btn-copy-code').addEventListener('click', () => {
-  if (multiplayer.roomId) {
-    navigator.clipboard.writeText(multiplayer.roomId).then(() => {
-      const btn = document.getElementById('btn-copy-code');
-      btn.innerText = '✅ Copied';
-      setTimeout(() => { btn.innerText = '📋 Copy'; }, 2000);
-    }).catch(err => {
-      console.error('Failed to copy text: ', err);
-    });
   }
 });

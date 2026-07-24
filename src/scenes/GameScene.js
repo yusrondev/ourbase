@@ -12,6 +12,15 @@ export default class GameScene extends Phaser.Scene {
   }
 
   preload() {
+    // Load map background
+    this.load.image('map_bg', '/maps/1.png');
+    
+    // Load collision data for current map
+    this.load.json('map_collisions', '/maps/1_collisions.json');
+    
+    // Load hitbox configs from hitbox editor
+    this.load.json('hitbox_config', '/characters/hitboxes.json');
+    
     // Load arrow for ranged attacks (now from lyra)
     this.load.image('arrow', '/characters/lyra/arrow.png');
     
@@ -21,13 +30,50 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create() {
-    // 1. Define Fixed World Size (e.g., 2000x2000 pixels)
-    this.WORLD_WIDTH = 2000;
-    this.WORLD_HEIGHT = 2000;
+    // 1. Define Fixed World Size (e.g., 800x800 pixels)
+    this.WORLD_WIDTH = 800;
+    this.WORLD_HEIGHT = 600;
 
     // Apply limits to the physics engine and the camera
     this.physics.world.setBounds(0, 0, this.WORLD_WIDTH, this.WORLD_HEIGHT);
     this.cameras.main.setBounds(0, 0, this.WORLD_WIDTH, this.WORLD_HEIGHT);
+
+    // Add map background
+    this.add.image(0, 0, 'map_bg').setOrigin(0, 0).setDisplaySize(this.WORLD_WIDTH, this.WORLD_HEIGHT);
+
+    // ── Collision Debug Toggle ──
+    this.physics.world.createDebugGraphic();
+    this.physics.world.drawDebug = false;
+    this.add.text(10, 40, 'Debug Collision: Tekan [O]', { fontSize: '12px', fill: '#0f0' })
+      .setScrollFactor(0).setDepth(1000);
+    this.input.keyboard.on('keydown-O', () => {
+      this.physics.world.drawDebug = !this.physics.world.drawDebug;
+      if (!this.physics.world.drawDebug) {
+        this.physics.world.debugGraphic.clear();
+      }
+    });
+
+    // ── Build collision zones from editor data ──
+    this.collisionGroup = this.physics.add.staticGroup();
+    const collisionData = this.cache.json.get('map_collisions') || [];
+    collisionData.forEach(zone => {
+      // Only 'red' / 'block' zones are hard collision; skip spawns, portals, etc.
+      if (zone.type !== 'red') return;
+      // Use zone (invisible area) for reliable static physics body
+      const zoneObj = this.add.zone(
+        zone.x + zone.width / 2,
+        zone.y + zone.height / 2,
+        zone.width,
+        zone.height
+      );
+      this.physics.add.existing(zoneObj, true);
+      this.collisionGroup.add(zoneObj);
+    });
+
+    // ── Build spawn points from editor data ──
+    this.playerSpawns = collisionData.filter(z => z.type === 'spawn_player');
+    this.enemySpawns = collisionData.filter(z => z.type === 'spawn_enemy');
+
 
     this.enemies = []; // Central array for enemies
     this.enemyGroup = this.physics.add.group();
@@ -146,24 +192,46 @@ export default class GameScene extends Phaser.Scene {
       projectile.destroy();
     });
     
-    // Create Player based on selection (Spawn in the middle of the world)
+    // Create Player based on selection (Spawn at designated spawn point if any)
     const playerConfig = CHARACTER_CONFIG[this.characterKey];
     const initialTexture = playerConfig.singleSpritesheet ? `${this.characterKey}_all` : `${this.characterKey}_idle`;
-    this.player = this.physics.add.sprite(this.WORLD_WIDTH / 2, this.WORLD_HEIGHT / 2, initialTexture);
+    
+    let spawnX = this.WORLD_WIDTH / 2;
+    let spawnY = this.WORLD_HEIGHT / 2;
+    if (this.playerSpawns.length > 0) {
+      const spawn = Phaser.Math.RND.pick(this.playerSpawns);
+      spawnX = spawn.x + spawn.width / 2;
+      spawnY = spawn.y + spawn.height / 2;
+    }
+    
+    this.player = this.physics.add.sprite(spawnX, spawnY, initialTexture);
     const playerScale = playerConfig.scale || 1;
     this.player.setScale(playerScale);
-    const pBodyWidth = 30 / playerScale;
-    const pBodyHeight = 40 / playerScale;
-    this.player.setSize(pBodyWidth, pBodyHeight);
-    this.player.setOffset(
-      (playerConfig.frameWidth - pBodyWidth) / 2, 
-      (playerConfig.frameHeight / 2) - (20 / playerScale)
-    );
+
+    // Apply default/idle hitbox initially
+    this.updateHitboxForAnim(this.player, this.characterKey, 'idle');
+    
+    // Listen for animation changes to update hitbox dynamically
+    this.player.on('animationstart', (anim) => {
+      // Phaser animations are typically named 'characterKey_animKey'
+      const parts = anim.key.split('_');
+      if (parts.length >= 2) {
+        const animKey = parts.slice(1).join('_');
+        this.updateHitboxForAnim(this.player, this.characterKey, animKey);
+      }
+    });
+
     this.player.play(`${this.characterKey}_idle`);
     this.player.setCollideWorldBounds(true);
     this.player.hp = playerConfig.hp;
     this.playerMaxHp = playerConfig.hp;
+
+    // ── Collision: player cannot pass through collision zones ──
+    this.physics.add.collider(this.player, this.collisionGroup);
+    // ── Collision: enemies cannot pass through collision zones ──
+    this.physics.add.collider(this.enemyGroup, this.collisionGroup);
     
+
     // Draw range indicator for ranged characters or Monk
     if (playerConfig.attackType === 'ranged') {
       this.rangeIndicator = this.add.graphics();
@@ -220,13 +288,22 @@ export default class GameScene extends Phaser.Scene {
       
       const eScale = (enemyConfig.scale || 1) * scale;
       enemy.setScale(eScale);
-      const eBodyW = 30 / eScale;
-      const eBodyH = 40 / eScale;
-      enemy.setSize(eBodyW, eBodyH);
-      enemy.setOffset(
-        (enemyConfig.frameWidth - eBodyW) / 2, 
-        (enemyConfig.frameHeight / 2) - (20 / eScale)
-      );
+      
+      // Save scale multiplier for dynamic hitbox calculation
+      enemy.extraScale = scale;
+
+      // Apply initial hitbox
+      this.updateHitboxForAnim(enemy, type, 'idle');
+
+      // Update hitbox on animation change
+      enemy.on('animationstart', (anim) => {
+        const parts = anim.key.split('_');
+        if (parts.length >= 2) {
+          const animKey = parts.slice(1).join('_');
+          this.updateHitboxForAnim(enemy, type, animKey);
+        }
+      });
+
       enemy.play(`${type}_idle`);
       enemy.setCollideWorldBounds(true);
       enemy.hp = hp;
@@ -273,20 +350,20 @@ export default class GameScene extends Phaser.Scene {
     // because those are now dynamically handled in spawnEnemy via the character configuration!
     this.waves = [
       // Wave 1
-      [{ type: 'slime', x: 800, y: 1000 }],
+      [{ type: 'slime', x: 300, y: 400 }],
       // Wave 2
-      [{ type: 'blood', x: 1200, y: 1000 }],
+      [{ type: 'blood', x: 500, y: 400 }],
       // Wave 3
       [
-        { type: 'demon', x: 1000, y: 800 },
-        { type: 'slime', x: 800, y: 1200 }
+        { type: 'demon', x: 400, y: 300 },
+        { type: 'slime', x: 300, y: 500 }
       ],
       // Wave 4: Orc
-      [{ type: 'orc', x: 1000, y: 1200 }],
+      [{ type: 'orc', x: 400, y: 500 }],
       // Wave 5: Kaizer (Boss)
-      [{ type: 'kaizer', x: 1000, y: 1000, hpOverride: 500, scale: 1.5 }],
+      [{ type: 'kaizer', x: 400, y: 400, hpOverride: 500, scale: 1.5 }],
       // Wave 6: Lunaria (Ranged Boss)
-      [{ type: 'lunaria', x: 1200, y: 1000, scale: 1 }]
+      [{ type: 'lunaria', x: 500, y: 400, scale: 1 }]
     ];
     this.currentWaveIndex = 0;
     
@@ -294,9 +371,14 @@ export default class GameScene extends Phaser.Scene {
       const wave = this.waves[index];
       if (!wave) return;
       wave.forEach(enemyConfig => {
-        this.spawnEnemy(
-          enemyConfig.x, enemyConfig.y, enemyConfig.type, enemyConfig.hp
-        );
+        let ex = enemyConfig.x;
+        let ey = enemyConfig.y;
+        if (this.enemySpawns.length > 0) {
+          const spawn = Phaser.Math.RND.pick(this.enemySpawns);
+          ex = spawn.x + spawn.width / 2;
+          ey = spawn.y + spawn.height / 2;
+        }
+        this.spawnEnemy(ex, ey, enemyConfig.type, enemyConfig.hp);
       });
     };
 
@@ -335,30 +417,17 @@ export default class GameScene extends Phaser.Scene {
     this.isDead = false;
 
     this.getSafeSpawnPosition = () => {
-      let bestPos = { x: this.WORLD_WIDTH / 2, y: this.WORLD_HEIGHT / 2 };
-      let bestDist = 0;
-      
-      for (let i = 0; i < 50; i++) {
-        const testX = Phaser.Math.Between(100, this.WORLD_WIDTH - 100);
-        const testY = Phaser.Math.Between(100, this.WORLD_HEIGHT - 100);
-        
-        let minDistToEnemy = Infinity;
-        for (const enemy of this.enemies) {
-          if (enemy.hp <= 0) continue;
-          const dist = Phaser.Math.Distance.Between(testX, testY, enemy.x, enemy.y);
-          if (dist < minDistToEnemy) minDistToEnemy = dist;
-        }
-        
-        if (minDistToEnemy === Infinity || minDistToEnemy > 400) {
-          return { x: testX, y: testY };
-        }
-        
-        if (minDistToEnemy > bestDist) {
-          bestDist = minDistToEnemy;
-          bestPos = { x: testX, y: testY };
-        }
+      // Selalu kembalikan posisi spawn yang ditentukan (tidak random / distance check)
+      if (this.playerSpawns.length > 0) {
+        const spawn = this.playerSpawns[0]; // Ambil titik spawn pertama
+        return { 
+          x: spawn.x + spawn.width / 2, 
+          y: spawn.y + spawn.height / 2 
+        };
       }
-      return bestPos;
+      
+      // Fallback jika tidak ada spawn point
+      return { x: this.WORLD_WIDTH / 2, y: this.WORLD_HEIGHT / 2 };
     };
 
     this.resuscitatePlayer = () => {
@@ -1273,5 +1342,39 @@ export default class GameScene extends Phaser.Scene {
     
     btnB.addEventListener('touchstart', (e) => { e.preventDefault(); this.isBtnBDown = true; }, { passive: false });
     btnB.addEventListener('touchend', (e) => { e.preventDefault(); this.isBtnBDown = false; });
+  }
+
+  // ── Helper to update hitbox dynamically based on character and animation ──
+  updateHitboxForAnim(sprite, charKey, animKey) {
+    if (!sprite.body) return;
+    
+    const config = CHARACTER_CONFIG[charKey];
+    if (!config) return;
+
+    const baseScale = config.scale || 1;
+    const extraScale = sprite.extraScale || 1; // used by enemies that are spawned bigger
+    const totalScale = baseScale * extraScale;
+
+    const hitboxCfg = this.cache.json.get('hitbox_config') || {};
+    const charHitboxes = hitboxCfg[charKey] || {};
+    
+    // Fallback order: Specific Anim -> 'idle' Anim -> Default Formula
+    const hbx = charHitboxes[animKey] || charHitboxes['idle'];
+    
+    let bodyW, bodyH, offX, offY;
+    if (hbx) {
+      bodyW = hbx.bodyW / extraScale;
+      bodyH = hbx.bodyH / extraScale;
+      offX = hbx.offsetX / extraScale;
+      offY = hbx.offsetY / extraScale;
+    } else {
+      bodyW = 30 / totalScale;
+      bodyH = 40 / totalScale;
+      offX = (config.frameWidth - bodyW) / 2;
+      offY = (config.frameHeight / 2) - (20 / totalScale);
+    }
+
+    sprite.setSize(bodyW, bodyH);
+    sprite.setOffset(offX, offY);
   }
 }

@@ -4,7 +4,7 @@ import { CHARACTER_CONFIG } from '../config/characters.js';
 export default class SelectionScene extends Phaser.Scene {
   constructor() {
     super('SelectionScene');
-    this.characters = Object.keys(CHARACTER_CONFIG).filter(key => CHARACTER_CONFIG[key].name);
+    this.characters = Object.keys(CHARACTER_CONFIG).filter(key => CHARACTER_CONFIG[key].role);
     this.currentIndex = 0;
   }
 

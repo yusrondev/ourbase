@@ -57,6 +57,7 @@ export const CHARACTER_CONFIG = {
     }
   },
   slime: {
+    name: 'Slime',
     folder: 'slime',
     frameWidth: 96,
     frameHeight: 96,
@@ -73,6 +74,7 @@ export const CHARACTER_CONFIG = {
     }
   },
   blood: {
+    name: 'Blood',
     folder: 'blood',
     frameWidth: 100,
     frameHeight: 100,
@@ -89,6 +91,7 @@ export const CHARACTER_CONFIG = {
     }
   },
   demon: {
+    name: 'Demon',
     folder: 'demon',
     frameWidth: 100,
     frameHeight: 100,
@@ -105,6 +108,7 @@ export const CHARACTER_CONFIG = {
     }
   },
   orc: {
+    name: 'Orc',
     folder: 'orc',
     frameWidth: 100,
     frameHeight: 100,
@@ -121,6 +125,7 @@ export const CHARACTER_CONFIG = {
     }
   },
   kaizer: {
+    name: 'Kaizer',
     folder: 'kaizer',
     frameWidth: 250,
     frameHeight: 250,
@@ -138,6 +143,7 @@ export const CHARACTER_CONFIG = {
     }
   },
   lunaria: {
+    name: 'Lunaria',
     folder: 'lunaria',
     frameWidth: 140,
     frameHeight: 140,

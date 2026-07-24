@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Sprite Hitbox Editor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0d0f14;--surface:#161a22;--surface2:#1e2430;--border:#2a3040;
+      --accent:#6c63ff;--green:#4ade80;--red:#f87171;--yellow:#fbbf24;
+      --cyan:#22d3ee;--text:#e4e8f0;--muted:#6b7280;
+    }
+    body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+    header{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;row-gap:5px}
+    .logo{font-weight:700;font-size:13px;letter-spacing:.05em;color:var(--accent)}
+    .logo span{color:var(--text)}
+    .sep{width:1px;height:22px;background:var(--border);flex-shrink:0}
+    .tbtn{display:flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+    .tbtn:hover{border-color:var(--accent);color:var(--text)}
+    .tbtn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+    .tbtn.success{border-color:var(--green);color:var(--green)}.tbtn.success:hover{background:var(--green);color:#000}
+    .tbtn.save-btn{border-color:var(--cyan);color:var(--cyan);font-size:12px;padding:5px 16px}
+    .tbtn.save-btn:hover{background:var(--cyan);color:#000}
+    .main{display:flex;flex:1;overflow:hidden}
+    aside{width:240px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+    .ss{padding:10px;border-bottom:1px solid var(--border)}
+    .st{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px}
+    .char-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:5px;cursor:pointer;font-size:12px;transition:background .15s;border:1px solid transparent}
+    .char-item:hover{background:var(--surface2)}
+    .char-item.active{background:#6c63ff22;border-color:var(--accent);color:var(--accent)}
+    .char-badge{font-size:9px;padding:2px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace}
+    .badge-player{background:#6c63ff33;color:var(--accent);border:1px solid #6c63ff55}
+    .badge-enemy{background:#f8717133;color:var(--red);border:1px solid #f8717155}
+    .field-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .field-row label{font-size:11px;color:var(--muted)}
+    .field-row input[type=number]{width:80px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:4px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;text-align:right}
+    .field-row input[type=number]:focus{outline:none;border-color:var(--accent)}
+    .field-row input[type=range]{width:100px;-webkit-appearance:none;height:3px;background:var(--border);border-radius:3px}
+    .field-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer}
+    .info-row{display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px}
+    .info-row .lb{color:var(--muted)}.info-row .vl{font-family:'JetBrains Mono',monospace;color:var(--text)}
+    .cw{flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:repeating-conic-gradient(#1a1f2b 0% 25%,#141820 0% 50%) 0 0/20px 20px;position:relative}
+    canvas{display:block;image-rendering:pixelated}
+    footer{display:flex;align-items:center;gap:12px;padding:4px 14px;background:var(--surface);border-top:1px solid var(--border);font-size:10px;color:var(--muted);flex-shrink:0}
+    .anim-btn{padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-size:10px;cursor:pointer}
+    .anim-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+    select{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 8px;font-family:'Outfit',sans-serif;font-size:11px;cursor:pointer}
+    .toast{position:fixed;bottom:30px;right:20px;background:var(--green);color:#000;font-weight:700;font-size:13px;padding:10px 18px;border-radius:8px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
+    .toast.show{opacity:1}
+  </style>
+</head>
+<body>
+<div class="toast" id="toast">✅ Hitbox Saved!</div>
+<header>
+  <div class="logo">⚔️ HITBOX <span>EDITOR</span></div>
+  <div class="sep"></div>
+  <div style="font-size:11px;color:var(--muted)">Karakter:</div>
+  <select id="char-select"></select>
+  <div class="sep"></div>
+  <div style="font-size:11px;color:var(--muted)">Animasi:</div>
+  <div id="anim-btns" style="display:flex;gap:4px"></div>
+  <div class="sep"></div>
+  <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px">
+    Zoom
+    <input type="range" id="zoom-range" min="1" max="6" value="3" style="width:80px;-webkit-appearance:none;height:3px;background:var(--border);border-radius:3px" />
+    <span id="zoom-val" style="font-family:'JetBrains Mono',monospace;font-size:10px;min-width:24px">3×</span>
+  </label>
+  <div class="sep"></div>
+  <button class="tbtn save-btn" id="btn-save">💾 Save Hitbox</button>
+</header>
+
+<div class="main">
+  <aside>
+    <!-- Character List -->
+    <div class="ss">
+      <div class="st">Semua Karakter</div>
+      <div id="char-list"></div>
+    </div>
+
+    <!-- Hitbox Controls -->
+    <div class="ss">
+      <div class="st">Hitbox Size (world px)</div>
+      <div class="field-row">
+        <label>Width (W)</label>
+        <input type="number" id="hb-w" value="30" min="1" max="500"/>
+      </div>
+      <div class="field-row">
+        <label>Height (H)</label>
+        <input type="number" id="hb-h" value="40" min="1" max="500"/>
+      </div>
+    </div>
+    <div class="ss">
+      <div class="st">Hitbox Offset (world px)</div>
+      <div class="field-row">
+        <label>Offset X</label>
+        <input type="number" id="hb-ox" value="0" min="-500" max="500"/>
+      </div>
+      <div class="field-row">
+        <label>Offset Y</label>
+        <input type="number" id="hb-oy" value="0" min="-500" max="500"/>
+      </div>
+    </div>
+    <div class="ss">
+      <div class="st">Info Sprite</div>
+      <div class="info-row"><span class="lb">Frame Size</span><span class="vl" id="i-frame">—</span></div>
+      <div class="info-row"><span class="lb">Scale</span><span class="vl" id="i-scale">—</span></div>
+      <div class="info-row"><span class="lb">Display px</span><span class="vl" id="i-display">—</span></div>
+      <div class="info-row"><span class="lb">HB World</span><span class="vl" id="i-hbworld">—</span></div>
+      <div class="info-row"><span class="lb">HB Screen</span><span class="vl" id="i-hbscreen">—</span></div>
+    </div>
+    <div class="ss">
+      <div class="st">Saved Configs</div>
+      <div id="saved-info" style="font-size:10px;color:var(--muted)">Loading...</div>
+    </div>
+  </aside>
+
+  <div class="cw" id="cw">
+    <canvas id="ec"></canvas>
+  </div>
+</div>
+<footer>
+  <span id="stmsg">Pilih karakter → drag handle untuk sesuaikan hitbox → Save</span>
+  <span style="margin-left:auto;color:var(--accent)">Drag → geser hitbox | Handle corner → resize</span>
+</footer>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  Sprite Hitbox Editor
+//  Loads spritesheet, animates, shows editable hitbox
+// ══════════════════════════════════════════════════════
+
+// All characters from characters.js (mirrored here)
+const CHARS = {
+  lucien:{name:'Lucien',role:'player',folder:'lucien',frameWidth:128,frameHeight:128,scale:0.6,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:5,rate:12},death:{frames:4,rate:8},hurt:{frames:2,rate:8}}},
+  human:{name:'Darius',role:'player',folder:'human',frameWidth:96,frameHeight:96,scale:2,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:6,rate:12},death:{frames:6,rate:8},hurt:{frames:4,rate:8}}},
+  soldier2:{name:'Victor',role:'player',folder:'soldier2',frameWidth:100,frameHeight:100,scale:2,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:6,rate:12},death:{frames:4,rate:8},hurt:{frames:4,rate:8}}},
+  slime:{name:'Slime',role:'enemy',folder:'slime',frameWidth:96,frameHeight:96,scale:2,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:6,rate:10},death:{frames:6,rate:8},hurt:{frames:4,rate:8}}},
+  blood:{name:'Blood',role:'enemy',folder:'blood',frameWidth:100,frameHeight:100,scale:2,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:8,rate:10},death:{frames:4,rate:8},hurt:{frames:4,rate:8}}},
+  demon:{name:'Demon',role:'enemy',folder:'demon',frameWidth:100,frameHeight:100,scale:2,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:7,rate:10},death:{frames:4,rate:8},hurt:{frames:4,rate:8}}},
+  orc:{name:'Orc',role:'enemy',folder:'orc',frameWidth:100,frameHeight:100,scale:2,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:10},attack:{frames:7,rate:10},death:{frames:4,rate:8},hurt:{frames:4,rate:8}}},
+  kaizer:{name:'Kaizer',role:'enemy',folder:'kaizer',frameWidth:250,frameHeight:250,scale:1,animations:{idle:{frames:8,rate:8},walk:{frames:8,rate:10},attack:{frames:8,rate:10},death:{frames:7,rate:8},hurt:{frames:3,rate:8}}},
+  lunaria:{name:'Lunaria',role:'player',folder:'lunaria',frameWidth:140,frameHeight:140,scale:1,animations:{idle:{frames:10,rate:8},walk:{frames:8,rate:10},attack:{frames:13,rate:12},death:{frames:18,rate:10},hurt:{frames:3,rate:8}}},
+  monk:{name:'Monk',role:'player',folder:'monk',frameWidth:192,frameHeight:192,scale:0.5,animations:{idle:{frames:6,rate:8},walk:{frames:4,rate:10},heal:{frames:11,rate:10}}},
+  tank:{name:'Valgor',role:'player',folder:'tank',frameWidth:192,frameHeight:192,scale:0.5,animations:{idle:{frames:8,rate:8},walk:{frames:6,rate:10},attack:{frames:4,rate:8}}},
+  lyra:{name:'Lyra',role:'player',folder:'lyra',frameWidth:100,frameHeight:100,scale:1,animations:{idle:{frames:10,rate:8},walk:{frames:8,rate:10},attack:{frames:6,rate:12},hurt:{frames:3,rate:8},death:{frames:10,rate:8}}},
+  kael:{name:'Kael',role:'player',folder:'kael',frameWidth:180,frameHeight:180,scale:0.8,animations:{idle:{frames:11,rate:10},walk:{frames:8,rate:12},attack:{frames:7,rate:12},hurt:{frames:4,rate:8},death:{frames:11,rate:8}}},
+  lucifer:{name:'Lucifer',role:'player',folder:'lucifer',frameWidth:200,frameHeight:200,scale:0.8,animations:{idle:{frames:4,rate:8},walk:{frames:8,rate:12},attack:{frames:4,rate:12},hurt:{frames:3,rate:8},death:{frames:7,rate:8}}},
+  shifu:{name:'Shifu',role:'player',folder:'shifu',frameWidth:200,frameHeight:200,scale:0.8,animations:{idle:{frames:8,rate:8},walk:{frames:8,rate:12},attack:{frames:6,rate:15},hurt:{frames:4,rate:8},death:{frames:6,rate:8}}},
+  mystic:{name:'Mystic',role:'player',folder:'mystic',frameWidth:231,frameHeight:190,scale:0.6,animations:{idle:{frames:6,rate:8},walk:{frames:8,rate:12},attack:{frames:8,rate:12},hurt:{frames:4,rate:8},death:{frames:7,rate:8}}},
+};
+
+const canvas = document.getElementById('ec');
+const ctx = canvas.getContext('2d');
+
+let ZOOM = 3;
+let currentKey = 'slime';
+let currentAnim = 'idle';
+let currentConfig = null;
+let savedHitboxes = {}; // { charKey: { bodyW, bodyH, offsetX, offsetY } }
+
+// Hitbox state (in world pixels = unscaled sprite pixels)
+let hb = { w: 30, h: 40, ox: 0, oy: 0 };
+
+// Sprite sheet
+let spriteImg = null;
+let frameCount = 0;
+let frameW = 0, frameH = 0;
+let currentFrame = 0;
+let animTimer = 0;
+let animRate = 8;
+let lastTime = 0;
+
+// Drag state
+let drag = null; // { type: 'move'|'resize', handle, startMx, startMy, startHb }
+const HANDLES = ['n','s','e','w','nw','ne','sw','se'];
+
+// Canvas size
+const CW = 600, CH = 500;
+canvas.width = CW; canvas.height = CH;
+
+// ── Load Hitboxes from server ──────────────────
+async function loadHitboxes() {
+  try {
+    const r = await fetch('/characters/hitboxes.json?t=' + Date.now());
+    if (r.ok) {
+      const data = await r.json();
+      // Migration from old flat format to nested per-anim format
+      savedHitboxes = {};
+      for (const char in data) {
+        if (data[char].bodyW !== undefined) {
+          // Old format, map to idle
+          savedHitboxes[char] = { idle: data[char] };
+        } else {
+          // New format
+          savedHitboxes[char] = data[char];
+        }
+      }
+    }
+  } catch {}
+  renderSavedInfo();
+}
+
+async function saveHitboxes() {
+  if (!savedHitboxes[currentKey]) savedHitboxes[currentKey] = {};
+  savedHitboxes[currentKey][currentAnim] = {
+    bodyW: hb.w, bodyH: hb.h,
+    offsetX: hb.ox, offsetY: hb.oy
+  };
+  try {
+    const r = await fetch('/api/hitbox/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(savedHitboxes)
+    });
+    const j = await r.json();
+    if (j.ok) {
+      showToast('✅ Hitbox saved!');
+      renderSavedInfo();
+    }
+  } catch (e) { showToast('❌ ' + e.message); }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function renderSavedInfo() {
+  const el = document.getElementById('saved-info');
+  const keys = Object.keys(savedHitboxes);
+  if (!keys.length) { el.textContent = 'Belum ada yang tersimpan'; return; }
+  
+  let html = '';
+  keys.forEach(k => {
+    html += `<div style="margin-bottom:4px;font-family:'JetBrains Mono',monospace">`;
+    html += `<strong style="color:var(--accent)">${k}</strong><br>`;
+    const anims = savedHitboxes[k];
+    for (const a in anims) {
+      const hbx = anims[a];
+      html += `  <span style="color:var(--green)">${a}</span>: ${Math.round(hbx.bodyW)}×${Math.round(hbx.bodyH)}<br>`;
+    }
+    html += `</div>`;
+  });
+  el.innerHTML = html;
+}
+
+// ── Load sprite ──────────────────────────────
+function loadSprite(key, anim) {
+  currentKey = key;
+  currentAnim = anim;
+  currentConfig = CHARS[key];
+  const cfg = currentConfig;
+  frameW = cfg.frameWidth;
+  frameH = cfg.frameHeight;
+  const animCfg = cfg.animations[anim] || { frames: 1, rate: 8 };
+  frameCount = animCfg.frames;
+  animRate = animCfg.rate;
+  currentFrame = 0;
+  animTimer = 0;
+
+  // Apply saved hitbox if exists for this animation
+  if (savedHitboxes[key] && savedHitboxes[key][anim]) {
+    const sh = savedHitboxes[key][anim];
+    hb = { w: sh.bodyW, h: sh.bodyH, ox: sh.offsetX, oy: sh.offsetY };
+  } else if (savedHitboxes[key] && savedHitboxes[key]['idle']) {
+    // Fallback to idle hitbox if specific anim not defined
+    const sh = savedHitboxes[key]['idle'];
+    hb = { w: sh.bodyW, h: sh.bodyH, ox: sh.offsetX, oy: sh.offsetY };
+  } else {
+    // Default formula (same as GameScene.js)
+    const s = cfg.scale || 1;
+    hb.w = 30 / s;
+    hb.h = 40 / s;
+    hb.ox = (frameW - hb.w) / 2;
+    hb.oy = (frameH / 2) - (20 / s);
+  }
+  updateInputs();
+  updateInfo();
+
+  spriteImg = new Image();
+  spriteImg.onload = () => render(performance.now());
+  spriteImg.onerror = () => {
+    spriteImg = null;
+    document.getElementById('stmsg').textContent = `❌ Sprite not found: /characters/${cfg.folder}/${anim}.png`;
+  };
+  spriteImg.src = `/characters/${cfg.folder}/${anim}.png?t=` + Date.now();
+}
+
+function updateInputs() {
+  document.getElementById('hb-w').value = Math.round(hb.w);
+  document.getElementById('hb-h').value = Math.round(hb.h);
+  document.getElementById('hb-ox').value = Math.round(hb.ox);
+  document.getElementById('hb-oy').value = Math.round(hb.oy);
+}
+
+function updateInfo() {
+  if (!currentConfig) return;
+  const s = currentConfig.scale || 1;
+  document.getElementById('i-frame').textContent = `${frameW}×${frameH}`;
+  document.getElementById('i-scale').textContent = `${s}×`;
+  document.getElementById('i-display').textContent = `${Math.round(frameW*s)}×${Math.round(frameH*s)}px`;
+  document.getElementById('i-hbworld').textContent = `${Math.round(hb.w)}×${Math.round(hb.h)}`;
+  document.getElementById('i-hbscreen').textContent = `${Math.round(hb.w*s*ZOOM)}×${Math.round(hb.h*s*ZOOM)}px on screen`;
+}
+
+// ── Main render loop ────────────────────────
+function render(time) {
+  requestAnimationFrame(render);
+  const dt = time - lastTime; lastTime = time;
+  animTimer += dt;
+  const msPerFrame = 1000 / animRate;
+  if (animTimer >= msPerFrame) {
+    animTimer -= msPerFrame;
+    currentFrame = (currentFrame + 1) % frameCount;
+  }
+
+  ctx.clearRect(0, 0, CW, CH);
+  // Background checker
+  ctx.fillStyle = '#1a1f2b';
+  ctx.fillRect(0, 0, CW, CH);
+
+  if (!currentConfig) return;
+  const s = currentConfig.scale || 1;
+  const dispW = frameW * s * ZOOM;
+  const dispH = frameH * s * ZOOM;
+  const cx = (CW - dispW) / 2;
+  const cy = (CH - dispH) / 2;
+
+  // Draw sprite frame
+  if (spriteImg) {
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(spriteImg,
+      currentFrame * frameW, 0, frameW, frameH,
+      cx, cy, dispW, dispH
+    );
+  } else {
+    ctx.fillStyle = '#2a3040';
+    ctx.fillRect(cx, cy, dispW, dispH);
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '12px Outfit';
+    ctx.textAlign = 'center';
+    ctx.fillText('Loading...', CW/2, CH/2);
+  }
+
+  // Frame boundary (sprite full extent)
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.strokeRect(cx, cy, dispW, dispH);
+  ctx.setLineDash([]);
+
+  // Center cross
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(CW/2, cy); ctx.lineTo(CW/2, cy+dispH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, CH/2); ctx.lineTo(cx+dispW, CH/2); ctx.stroke();
+
+  // Hitbox in screen space
+  // Offset is in sprite-local pixels (pre-scale)
+  const hbScreenX = cx + hb.ox * s * ZOOM;
+  const hbScreenY = cy + hb.oy * s * ZOOM;
+  const hbScreenW = hb.w * s * ZOOM;
+  const hbScreenH = hb.h * s * ZOOM;
+
+  // Hitbox fill
+  ctx.fillStyle = 'rgba(248,113,113,0.18)';
+  ctx.fillRect(hbScreenX, hbScreenY, hbScreenW, hbScreenH);
+
+  // Hitbox border
+  ctx.strokeStyle = '#f87171';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([]);
+  ctx.strokeRect(hbScreenX + 1, hbScreenY + 1, hbScreenW - 2, hbScreenH - 2);
+
+  // Center of hitbox
+  ctx.fillStyle = '#f87171';
+  ctx.beginPath();
+  ctx.arc(hbScreenX + hbScreenW/2, hbScreenY + hbScreenH/2, 3, 0, Math.PI*2);
+  ctx.fill();
+
+  // Labels
+  ctx.fillStyle = '#f87171';
+  ctx.font = 'bold 10px JetBrains Mono';
+  ctx.textAlign = 'left';
+  ctx.fillText(`W:${Math.round(hb.w)} H:${Math.round(hb.h)}`, hbScreenX + 3, hbScreenY - 4);
+  ctx.fillStyle = '#fbbf24';
+  ctx.fillText(`ox:${Math.round(hb.ox)} oy:${Math.round(hb.oy)}`, hbScreenX + 3, hbScreenY + hbScreenH + 12);
+
+  // Resize handles
+  getHandleRects(hbScreenX, hbScreenY, hbScreenW, hbScreenH).forEach(({x,y,w,h,id}) => {
+    ctx.fillStyle = drag && drag.handle === id ? '#fff' : '#f87171';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, w, h);
+  });
+}
+
+const HS = 8; // handle size
+function getHandleRects(bx, by, bw, bh) {
+  const mx = bx + bw/2, my = by + bh/2;
+  return [
+    {id:'nw',x:bx-HS/2,y:by-HS/2,w:HS,h:HS},
+    {id:'n', x:mx-HS/2,y:by-HS/2,w:HS,h:HS},
+    {id:'ne',x:bx+bw-HS/2,y:by-HS/2,w:HS,h:HS},
+    {id:'e', x:bx+bw-HS/2,y:my-HS/2,w:HS,h:HS},
+    {id:'se',x:bx+bw-HS/2,y:by+bh-HS/2,w:HS,h:HS},
+    {id:'s', x:mx-HS/2,y:by+bh-HS/2,w:HS,h:HS},
+    {id:'sw',x:bx-HS/2,y:by+bh-HS/2,w:HS,h:HS},
+    {id:'w', x:bx-HS/2,y:my-HS/2,w:HS,h:HS},
+    {id:'move',x:mx-10,y:my-10,w:20,h:20,isMove:true}
+  ];
+}
+
+function hitHandle(mx, my) {
+  if (!currentConfig) return null;
+  const s = currentConfig.scale || 1;
+  const dispW = frameW * s * ZOOM, dispH = frameH * s * ZOOM;
+  const cx = (CW - dispW) / 2, cy2 = (CH - dispH) / 2;
+  const hbSX = cx + hb.ox * s * ZOOM;
+  const hbSY = cy2 + hb.oy * s * ZOOM;
+  const hbSW = hb.w * s * ZOOM, hbSH = hb.h * s * ZOOM;
+  const handles = getHandleRects(hbSX, hbSY, hbSW, hbSH);
+  for (const h of handles) {
+    if (mx >= h.x && mx <= h.x+h.w && my >= h.y && my <= h.y+h.h) return h;
+  }
+  // Check inside box (move)
+  if (mx >= hbSX && mx <= hbSX+hbSW && my >= hbSY && my <= hbSY+hbSH) {
+    return {id:'move'};
+  }
+  return null;
+}
+
+canvas.addEventListener('mousedown', e => {
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const h = hitHandle(mx, my);
+  if (h) {
+    drag = { handle: h.id, startMx: mx, startMy: my, startHb: {...hb} };
+    e.preventDefault();
+  }
+});
+
+window.addEventListener('mousemove', e => {
+  if (!drag || !currentConfig) return;
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const s = currentConfig.scale || 1;
+  const dx = (mx - drag.startMx) / (s * ZOOM);
+  const dy = (my - drag.startMy) / (s * ZOOM);
+  const sh = drag.startHb;
+
+  if (drag.handle === 'move') {
+    hb.ox = sh.ox + dx; hb.oy = sh.oy + dy;
+  } else {
+    // Resize
+    const h = drag.handle;
+    if (h.includes('e')) { hb.w = Math.max(4, sh.w + dx); }
+    if (h.includes('s')) { hb.h = Math.max(4, sh.h + dy); }
+    if (h.includes('w')) { const nw = Math.max(4, sh.w - dx); hb.ox = sh.ox + (sh.w - nw); hb.w = nw; }
+    if (h.includes('n')) { const nh = Math.max(4, sh.h - dy); hb.oy = sh.oy + (sh.h - nh); hb.h = nh; }
+  }
+  updateInputs(); updateInfo();
+});
+
+window.addEventListener('mouseup', () => { drag = null; });
+
+// Cursor
+canvas.addEventListener('mousemove', e => {
+  if (drag) return;
+  const r = canvas.getBoundingClientRect();
+  const h = hitHandle(e.clientX - r.left, e.clientY - r.top);
+  if (!h) { canvas.style.cursor = 'default'; return; }
+  const cursors = {n:'n-resize',s:'s-resize',e:'e-resize',w:'w-resize',nw:'nw-resize',ne:'ne-resize',sw:'sw-resize',se:'se-resize',move:'move'};
+  canvas.style.cursor = cursors[h.id] || 'default';
+});
+
+// Input fields
+['hb-w','hb-h','hb-ox','hb-oy'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    hb.w = parseFloat(document.getElementById('hb-w').value) || 1;
+    hb.h = parseFloat(document.getElementById('hb-h').value) || 1;
+    hb.ox = parseFloat(document.getElementById('hb-ox').value) || 0;
+    hb.oy = parseFloat(document.getElementById('hb-oy').value) || 0;
+    updateInfo();
+  });
+});
+
+// Zoom
+document.getElementById('zoom-range').addEventListener('input', e => {
+  ZOOM = parseInt(e.target.value);
+  document.getElementById('zoom-val').textContent = ZOOM + '×';
+  updateInfo();
+});
+
+// Char select
+function buildUI() {
+  // Dropdown
+  const sel = document.getElementById('char-select');
+  sel.innerHTML = Object.entries(CHARS).map(([k,v]) =>
+    `<option value="${k}">${v.name} (${v.role})</option>`
+  ).join('');
+  sel.addEventListener('change', () => {
+    loadSprite(sel.value, 'idle');
+    buildAnimBtns(sel.value);
+    highlightChar(sel.value);
+  });
+
+  // List
+  const list = document.getElementById('char-list');
+  Object.entries(CHARS).forEach(([k, v]) => {
+    const d = document.createElement('div');
+    d.className = 'char-item' + (k === currentKey ? ' active' : '');
+    d.dataset.key = k;
+    d.innerHTML = `<span>${v.name}</span><span class="char-badge ${v.role==='player'?'badge-player':'badge-enemy'}">${v.role}</span>`;
+    d.addEventListener('click', () => {
+      sel.value = k;
+      loadSprite(k, 'idle');
+      buildAnimBtns(k);
+      highlightChar(k);
+    });
+    list.appendChild(d);
+  });
+}
+
+function highlightChar(key) {
+  document.querySelectorAll('.char-item').forEach(d => d.classList.toggle('active', d.dataset.key === key));
+}
+
+function buildAnimBtns(key) {
+  const btns = document.getElementById('anim-btns');
+  btns.innerHTML = '';
+  const anims = Object.keys(CHARS[key].animations || {});
+  anims.forEach(anim => {
+    const b = document.createElement('button');
+    b.className = 'anim-btn' + (anim === currentAnim ? ' active' : '');
+    b.textContent = anim;
+    b.addEventListener('click', () => {
+      currentAnim = anim;
+      document.querySelectorAll('.anim-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      loadSprite(currentKey, anim);
+    });
+    btns.appendChild(b);
+  });
+}
+
+document.getElementById('btn-save').addEventListener('click', saveHitboxes);
+
+// ── Init ────────────────────────────────────
+buildUI();
+loadHitboxes().then(() => {
+  loadSprite('slime', 'idle');
+  buildAnimBtns('slime');
+  document.getElementById('char-select').value = 'slime';
+});
+</script>
+</body>
+</html>
