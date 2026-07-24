@@ -90,7 +90,7 @@
     },
     "stats": {
       "hp": 180,
-      "attack": 1,
+      "attack": 30,
       "speed": 90,
       "attackType": "ranged",
       "attackRange": 150
