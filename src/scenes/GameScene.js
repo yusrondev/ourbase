@@ -1222,7 +1222,8 @@ export default class GameScene extends Phaser.Scene {
     // Update Player UI (Name + HP Bar)
     if (this.player.hp > 0) {
       if (this.playerUI) {
-        this.updateHtmlEntityUI(this.playerUI, this.player.x, this.player.y, -30, this.player.hp, this.playerMaxHp);
+        const uiOffsetY = CHARACTER_CONFIG[this.characterKey]?.uiOffsetY !== undefined ? CHARACTER_CONFIG[this.characterKey].uiOffsetY : -30;
+        this.updateHtmlEntityUI(this.playerUI, this.player.x, this.player.y, uiOffsetY, this.player.hp, this.playerMaxHp);
       }
     } else {
       if (this.playerUI) {
@@ -1416,7 +1417,8 @@ export default class GameScene extends Phaser.Scene {
 
       // Update Enemy UI
       if (enemy.uiContainer) {
-        this.updateHtmlEntityUI(enemy.uiContainer, enemy.x, enemy.y, -25, enemy.hp, enemy.maxHp);
+        const uiOffsetY = CHARACTER_CONFIG[enemy.type]?.uiOffsetY !== undefined ? CHARACTER_CONFIG[enemy.type].uiOffsetY : -25;
+        this.updateHtmlEntityUI(enemy.uiContainer, enemy.x, enemy.y, uiOffsetY, enemy.hp, enemy.maxHp);
       }
 
       if (multiplayer.room && !multiplayer.isHost) {
@@ -1566,7 +1568,8 @@ export default class GameScene extends Phaser.Scene {
           }
 
           if (rp.uiContainer) {
-            this.updateHtmlEntityUI(rp.uiContainer, rp.sprite.x, rp.sprite.y, -18, rp.hp, rp.maxHp);
+            const uiOffsetY = CHARACTER_CONFIG[rp.charKey || 'human']?.uiOffsetY !== undefined ? CHARACTER_CONFIG[rp.charKey || 'human'].uiOffsetY : -18;
+            this.updateHtmlEntityUI(rp.uiContainer, rp.sprite.x, rp.sprite.y, uiOffsetY, rp.hp, rp.maxHp);
           }
         }
       });

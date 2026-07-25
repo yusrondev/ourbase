@@ -4,7 +4,12 @@
       "bodyW": 17.77777777777777,
       "bodyH": 26.111111111111114,
       "offsetX": 56.22222222222223,
-      "offsetY": 100.66666666666666
+      "offsetY": 100.66666666666666,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
     },
     "attack": {
       "bodyW": 43.33333333333333,
@@ -38,8 +43,10 @@
       "hp": 50,
       "attack": 30,
       "speed": 210,
+      "scale": 0.5,
       "attackType": "melee",
-      "attackRange": 0
+      "attackRange": 0,
+      "uiOffsetY": -13
     }
   },
   "lyra": {
@@ -247,7 +254,8 @@
       "attack": 25,
       "speed": 80,
       "attackType": "melee",
-      "attackRange": 0
+      "attackRange": 0,
+      "uiOffsetY": -3
     },
     "idle": {
       "bodyW": 30,
@@ -342,7 +350,8 @@
       "attack": 25,
       "speed": 180,
       "attackType": "melee",
-      "attackRange": 0
+      "attackRange": 0,
+      "uiOffsetY": -5
     },
     "idle": {
       "bodyW": 8.88888888888889,
@@ -490,7 +499,8 @@
       "attack": 45,
       "speed": 80,
       "attackType": "melee",
-      "attackRange": 0
+      "attackRange": 0,
+      "uiOffsetY": -37
     },
     "idle": {
       "bodyW": 35,

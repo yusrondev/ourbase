@@ -89,8 +89,10 @@
       <div class="field-row"><label>HP</label><input type="number" id="stat-hp" value="100" style="width:60px" /></div>
       <div class="field-row"><label>Attack</label><input type="number" id="stat-atk" value="10" style="width:60px" /></div>
       <div class="field-row"><label>Speed</label><input type="number" id="stat-spd" value="100" style="width:60px" /></div>
+      <div class="field-row"><label>Scale</label><input type="number" id="stat-scale" step="0.1" min="0.1" max="10" value="1" style="width:60px" /></div>
       <div class="field-row"><label>Type</label><select id="stat-type" style="width:80px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:4px 8px;font-family:'Outfit',sans-serif;font-size:11px;"><option value="melee">melee</option><option value="ranged">ranged</option></select></div>
       <div class="field-row"><label>Range</label><input type="number" id="stat-range" value="0" style="width:60px" /></div>
+      <div class="field-row"><label>UI Offset Y</label><input type="number" id="stat-ui-offset-y" value="-30" style="width:60px" /></div>
     </div>
 
     <!-- Hitbox Mode Selection -->
@@ -212,7 +214,7 @@
     <div class="ss">
       <div class="st">Info Sprite</div>
       <div class="info-row"><span class="lb">Frame Size</span><span class="vl" id="i-frame">—</span></div>
-      <div class="info-row"><span class="lb">Scale</span><span class="vl" id="i-scale">—</span></div>
+      <div class="info-row"><span class="lb">Preview Scale</span><span class="vl" id="i-scale">—</span></div>
       <div class="info-row"><span class="lb">Display px</span><span class="vl" id="i-display">—</span></div>
       <div class="info-row"><span class="lb">HB World</span><span class="vl" id="i-hbworld">—</span></div>
       <div class="info-row"><span class="lb">HB Screen</span><span class="vl" id="i-hbscreen">—</span></div>
@@ -296,8 +298,10 @@ async function saveHitboxes() {
     hp: parseFloat(document.getElementById('stat-hp').value) || 10,
     attack: parseFloat(document.getElementById('stat-atk').value) || 10,
     speed: parseFloat(document.getElementById('stat-spd').value) || 100,
+    scale: parseFloat(document.getElementById('stat-scale').value) || 1,
     attackType: document.getElementById('stat-type').value || 'melee',
-    attackRange: parseFloat(document.getElementById('stat-range').value) || 0
+    attackRange: parseFloat(document.getElementById('stat-range').value) || 0,
+    uiOffsetY: parseFloat(document.getElementById('stat-ui-offset-y').value) || -30
   };
 
   savedHitboxes[currentKey][currentAnim] = {
@@ -396,11 +400,12 @@ function loadSprite(key, anim) {
     hbAttack = { w: 40, h: 40, ox: 0, oy: 0, frame: 1 };
   } else {
     // Default formula (same as GameScene.js)
-    const s = cfg.scale || 1;
-    hb.w = 30 / s;
-    hb.h = 40 / s;
+    const savedStats = savedHitboxes[key] && savedHitboxes[key].stats ? savedHitboxes[key].stats : null;
+    const initialScale = savedStats && savedStats.scale !== undefined ? savedStats.scale : (cfg.scale || 1);
+    hb.w = 30 / initialScale;
+    hb.h = 40 / initialScale;
     hb.ox = (frameW - hb.w) / 2;
-    hb.oy = (frameH / 2) - (20 / s);
+    hb.oy = (frameH / 2) - (20 / initialScale);
     hbAttack = { w: 40, h: 40, ox: 0, oy: 0, frame: 1 };
   }
   
@@ -410,6 +415,7 @@ function loadSprite(key, anim) {
   frameRange.value = hbAttack.frame;
   document.getElementById('hit-frame-val').textContent = hbAttack.frame;
 
+  populateStats();
   updateInputs();
   updateProjectileInputs(savedConfigForAnim);
   updateInfo();
@@ -480,23 +486,28 @@ function updateProjectileInputs(sh) {
   }
 }
 
+function populateStats() {
+  if (!currentConfig) return;
+  const savedStats = savedHitboxes[currentKey] && savedHitboxes[currentKey].stats ? savedHitboxes[currentKey].stats : null;
+  document.getElementById('stat-hp').value = savedStats ? savedStats.hp : (currentConfig.hp || 100);
+  document.getElementById('stat-atk').value = savedStats ? savedStats.attack : (currentConfig.attack || 10);
+  document.getElementById('stat-spd').value = savedStats ? savedStats.speed : (currentConfig.speed || 100);
+  document.getElementById('stat-scale').value = savedStats && savedStats.scale !== undefined ? savedStats.scale : (currentConfig.scale || 1);
+  document.getElementById('stat-type').value = savedStats ? savedStats.attackType : (currentConfig.attackType || 'melee');
+  document.getElementById('stat-range').value = savedStats ? savedStats.attackRange : (currentConfig.attackRange || (currentConfig.attackType === 'ranged' ? 500 : 0));
+  document.getElementById('stat-ui-offset-y').value = savedStats && savedStats.uiOffsetY !== undefined ? savedStats.uiOffsetY : (currentConfig.uiOffsetY !== undefined ? currentConfig.uiOffsetY : -30);
+}
+
 function updateInfo() {
   if (!currentConfig) return;
-  const s = currentConfig.scale || 1;
+
+  const s = parseFloat(document.getElementById('stat-scale').value) || 1;
   const activeHb = isAttackMode ? hbAttack : hb;
   document.getElementById('i-frame').textContent = `${frameW}×${frameH}`;
   document.getElementById('i-scale').textContent = `${s}×`;
   document.getElementById('i-display').textContent = `${Math.round(frameW*s)}×${Math.round(frameH*s)}px`;
   document.getElementById('i-hbworld').textContent = `${Math.round(activeHb.w)}×${Math.round(activeHb.h)}`;
   document.getElementById('i-hbscreen').textContent = `${Math.round(activeHb.w*s*ZOOM)}×${Math.round(activeHb.h*s*ZOOM)}px on screen`;
-
-  // Update Stats
-  const savedStats = savedHitboxes[currentKey] && savedHitboxes[currentKey].stats ? savedHitboxes[currentKey].stats : null;
-  document.getElementById('stat-hp').value = savedStats ? savedStats.hp : (currentConfig.hp || 100);
-  document.getElementById('stat-atk').value = savedStats ? savedStats.attack : (currentConfig.attack || 10);
-  document.getElementById('stat-spd').value = savedStats ? savedStats.speed : (currentConfig.speed || 100);
-  document.getElementById('stat-type').value = savedStats ? savedStats.attackType : (currentConfig.attackType || 'melee');
-  document.getElementById('stat-range').value = savedStats ? savedStats.attackRange : (currentConfig.attackRange || (currentConfig.attackType === 'ranged' ? 500 : 0));
 }
 
 // ── Main render loop ────────────────────────
@@ -522,7 +533,7 @@ function render(time) {
   ctx.fillRect(0, 0, CW, CH);
 
   if (!currentConfig) return;
-  const s = currentConfig.scale || 1;
+  const s = parseFloat(document.getElementById('stat-scale').value) || 1;
   const dispW = frameW * s * ZOOM;
   const dispH = frameH * s * ZOOM;
   const cx = (CW - dispW) / 2;
@@ -557,8 +568,7 @@ function render(time) {
   ctx.beginPath(); ctx.moveTo(CW/2, cy); ctx.lineTo(CW/2, cy+dispH); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(cx, CH/2); ctx.lineTo(cx+dispW, CH/2); ctx.stroke();
 
-  // Hitbox in screen space
-  // Offset is in sprite-local pixels (pre-scale)
+  // Hitbox in screen space — offset is in sprite-local pixels (pre-scale)
   const activeHb = isAttackMode ? hbAttack : hb;
   const hbScreenX = cx + activeHb.ox * s * ZOOM;
   const hbScreenY = cy + activeHb.oy * s * ZOOM;
@@ -615,6 +625,25 @@ function render(time) {
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, w, h);
   });
+
+  // UI Preview (NameTag + HP Bar)
+  const activeUiOffsetY = parseFloat(document.getElementById('stat-ui-offset-y').value) || -30;
+  const uiScreenX = cx + dispW / 2;
+  const uiScreenY = cy + dispH / 2 + (activeUiOffsetY * s * ZOOM);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 12px Outfit';
+  ctx.textAlign = 'center';
+  ctx.fillText('NameTag', uiScreenX, uiScreenY - 6);
+  
+  ctx.fillStyle = 'rgba(0,0,0,0.8)';
+  ctx.fillRect(uiScreenX - 20, uiScreenY, 40, 6);
+  ctx.fillStyle = '#4ade80';
+  ctx.fillRect(uiScreenX - 20, uiScreenY, 28, 6);
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(uiScreenX - 20, uiScreenY, 40, 6);
+
 }
 
 const HS = 8; // handle size
@@ -635,7 +664,7 @@ function getHandleRects(bx, by, bw, bh) {
 
 function hitHandle(mx, my) {
   if (!currentConfig) return null;
-  const s = currentConfig.scale || 1;
+  const s = parseFloat(document.getElementById('stat-scale').value) || 1;
   const dispW = frameW * s * ZOOM, dispH = frameH * s * ZOOM;
   const cx = (CW - dispW) / 2, cy2 = (CH - dispH) / 2;
   const activeHb = isAttackMode ? hbAttack : hb;
@@ -668,7 +697,7 @@ window.addEventListener('mousemove', e => {
   if (!drag || !currentConfig) return;
   const r = canvas.getBoundingClientRect();
   const mx = e.clientX - r.left, my = e.clientY - r.top;
-  const s = currentConfig.scale || 1;
+  const s = parseFloat(document.getElementById('stat-scale').value) || 1;
   const dx = (mx - drag.startMx) / (s * ZOOM);
   const dy = (my - drag.startMy) / (s * ZOOM);
   const sh = drag.startHb;
@@ -711,6 +740,10 @@ canvas.addEventListener('mousemove', e => {
     activeHb.oy = parseFloat(document.getElementById('hb-oy').value) || 0;
     updateInfo();
   });
+});
+
+document.getElementById('stat-scale').addEventListener('input', () => {
+  updateInfo();
 });
 
 // Mode Toggle
