@@ -183,15 +183,27 @@ export default class GameScene extends Phaser.Scene {
       zoneObj.label = zone.label;
       this.portalsGroup.add(zoneObj);
       
-      // Portal label text
-      this.add.text(zone.x + zone.width / 2, zone.y - 12, zone.label || 'Portal', {
-        fontSize: '10px',
-        fill: '#22d3ee',
-        backgroundColor: '#161a22aa',
-        fontFamily: 'Outfit, sans-serif',
-        fontStyle: 'bold',
-        padding: { x: 4, y: 2 }
-      }).setOrigin(0.5).setDepth(200);
+      // Portal label text (HTML)
+      const label = zone.label || 'Portal';
+      const uiContainer = document.createElement('div');
+      uiContainer.className = 'portal-label';
+      uiContainer.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="portal-svg">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+          <polyline points="10 17 15 12 10 7"></polyline>
+          <line x1="15" y1="12" x2="3" y2="12"></line>
+        </svg>
+        <span>${label}</span>
+      `;
+      
+      const mainContainer = document.getElementById('html-name-tags');
+      if (mainContainer) {
+        mainContainer.appendChild(uiContainer);
+      }
+      
+      zoneObj.uiContainer = uiContainer;
+      zoneObj.worldX = zone.x + zone.width / 2;
+      zoneObj.worldY = zone.y - 12;
     });
 
 
@@ -1411,6 +1423,15 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
+    // Update Portals UI
+    if (this.portalsGroup) {
+      this.portalsGroup.getChildren().forEach(portal => {
+        if (portal.uiContainer) {
+          this.updateHtmlPortalUI(portal.uiContainer, portal.worldX, portal.worldY);
+        }
+      });
+    }
+
     // Update Enemies
     this.enemies.forEach(enemy => {
       if (enemy.hp <= 0) return;
@@ -2043,6 +2064,24 @@ export default class GameScene extends Phaser.Scene {
         const pct = Math.max(0, Math.min(1, hp / maxHp)) * 100;
         container.hpFill.style.width = `${pct}%`;
       }
+    }
+  }
+
+  updateHtmlPortalUI(container, worldX, worldY) {
+    if (!container) return;
+    const cam = this.cameras.main;
+    const cx = cam.width / 2;
+    const cy = cam.height / 2;
+    
+    const screenX = (worldX - (cam.scrollX + cx)) * cam.zoom + cx;
+    const screenY = (worldY - (cam.scrollY + cy)) * cam.zoom + cy;
+    
+    if (screenX < -50 || screenX > cam.width + 50 || screenY < -50 || screenY > cam.height + 50) {
+      container.style.display = 'none';
+    } else {
+      container.style.display = 'block';
+      container.style.left = `${screenX}px`;
+      container.style.top = `${screenY}px`;
     }
   }
 

@@ -253,12 +253,31 @@ function showIngameUI(show) {
 }
 
 function hideSettingsMenu() {
-  if (settingsMenu) settingsMenu.style.display = 'none';
+  if (settingsMenu) {
+    settingsMenu.style.display = 'none';
+    const vc = document.getElementById('virtual-controls');
+    if (vc && vc.dataset.prevDisplay === 'flex') {
+      vc.style.display = 'flex';
+    }
+  }
 }
 
 if (gearBtn) {
   gearBtn.addEventListener('click', () => {
-    settingsMenu.style.display = settingsMenu.style.display === 'none' ? 'flex' : 'none';
+    const isOpening = settingsMenu.style.display === 'none';
+    settingsMenu.style.display = isOpening ? 'flex' : 'none';
+    
+    const vc = document.getElementById('virtual-controls');
+    if (vc) {
+      if (isOpening) {
+        vc.dataset.prevDisplay = vc.style.display;
+        vc.style.display = 'none';
+      } else {
+        if (vc.dataset.prevDisplay === 'flex') {
+          vc.style.display = 'flex';
+        }
+      }
+    }
   });
 }
 
