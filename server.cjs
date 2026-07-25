@@ -124,6 +124,19 @@ class GameRoom extends Room {
       this.broadcast("mission_complete", data);
     });
 
+    this.onMessage("force_back_to_lobby", (client) => {
+      this.state.status = "LOBBY";
+      this.broadcast("go_back_to_lobby");
+    });
+
+    this.onMessage("force_exit_game", (client) => {
+      this.broadcast("go_exit_game");
+    });
+
+    this.onMessage("_client_ping", (client) => {
+      client.send("_client_pong");
+    });
+
     this.onMessage("map_loaded", (client) => {
       const player = this.state.players.get(client.sessionId);
       if (player) {

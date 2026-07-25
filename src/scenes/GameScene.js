@@ -9,9 +9,11 @@ export default class GameScene extends Phaser.Scene {
 
   init(data) {
     this.cleanUpHtmlTags();
-    this.characterKey = data.character || 'lucien'; // 'human' or 'soldier2'
+    this.characterKey = data.character || 'lucien';
     this.currentLevelNum = data.level || 1;
     this.overrideMapName = data.map || null;
+    // Always reset leaving flag when a new game scene starts
+    if (multiplayer) multiplayer.isLeaving = false;
   }
 
   preload() {
@@ -206,7 +208,7 @@ export default class GameScene extends Phaser.Scene {
       
       const dmg = arrow.damage || 10;
       if (multiplayer.room) {
-        multiplayer.room.send("damage_enemy", { id: enemy.id, damage: dmg, sourceX: this.player.x, sourceY: this.player.y });
+        multiplayer.safeSend("damage_enemy", { id: enemy.id, damage: dmg, sourceX: this.player.x, sourceY: this.player.y });
       } else {
         // Single player mode
         this.showFloatingText(enemy.x, enemy.y - 40, `-${dmg}`, '#ffffff');
@@ -398,7 +400,7 @@ export default class GameScene extends Phaser.Scene {
       if (!this.levelComplete || this.isTransitioning) return;
       
       if (multiplayer.room) {
-        multiplayer.room.send("change_level", { targetMap: portalZone.targetMap });
+        multiplayer.safeSend("change_level", { targetMap: portalZone.targetMap });
       } else {
         this.performMapTransition(portalZone.targetMap);
       }
@@ -436,7 +438,7 @@ export default class GameScene extends Phaser.Scene {
 
       if (multiplayer.room) {
         // Any client getting hit by a projectile tells the server
-        multiplayer.room.send("damage_player", { targetId: multiplayer.room.sessionId, damage: dmg, sourceX: projectile.x, sourceY: projectile.y });
+        multiplayer.safeSend("damage_player", { targetId: multiplayer.room.sessionId, damage: dmg, sourceX: projectile.x, sourceY: projectile.y });
       } else {
         if (this.isGuarding) {
           player.hp -= dmg;
@@ -709,7 +711,7 @@ export default class GameScene extends Phaser.Scene {
               this.respawnReady = true;
               
               if (multiplayer.room) {
-                multiplayer.room.send("respawn_player");
+                multiplayer.safeSend("respawn_player");
                 
                 // If the server's HP is ALREADY maxHp (e.g. from an old delayed packet, or heal),
                 // the server won't broadcast an HP change, so we must revive locally right now!
@@ -726,7 +728,7 @@ export default class GameScene extends Phaser.Scene {
           // Fallback if HTML overlay doesn't exist
           this.time.delayedCall(5000, () => {
             if (multiplayer.room) {
-              multiplayer.room.send("respawn_player");
+              multiplayer.safeSend("respawn_player");
             } else {
               this.resuscitatePlayer();
             }
@@ -737,7 +739,7 @@ export default class GameScene extends Phaser.Scene {
 
     if (multiplayer.room) {
       if (multiplayer.isHost) {
-        multiplayer.room.send("host_update_enemies", []);
+        multiplayer.safeSend("host_update_enemies", []);
       }
 
       // Guard against stale listeners from previous scene instances (map transitions)
@@ -1166,7 +1168,7 @@ export default class GameScene extends Phaser.Scene {
       const waitOverlay = document.getElementById('waiting-overlay');
       if (waitOverlay) waitOverlay.style.display = 'flex';
       
-      multiplayer.room.send("map_loaded");
+      multiplayer.safeSend("map_loaded");
       
       const myGeneration = GameScene._sceneGeneration;
       multiplayer.room.onMessage("all_players_ready", () => {
@@ -1180,7 +1182,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   update(time, delta) {
-    if (this.isGameOver || !this.isGameReady) return;
+    if (this.isGameOver || !this.isGameReady || (multiplayer && multiplayer.isLeaving)) return;
 
     // Clean up destroyed enemies from logic array
     this.enemies = this.enemies.filter(enemy => enemy && enemy.active && enemy.scene);
@@ -1197,7 +1199,7 @@ export default class GameScene extends Phaser.Scene {
           this.levelComplete = true;
           
           if (multiplayer.room) {
-            multiplayer.room.send("mission_complete", {});
+            multiplayer.safeSend("mission_complete", {});
           } else {
             // Crisp Top Floating HTML Mission Complete Banner for Singleplayer
             const overlay = document.getElementById('mission-complete-overlay');
@@ -1328,7 +1330,7 @@ export default class GameScene extends Phaser.Scene {
               
               if (multiplayer.room) {
                 // Send heal event to server, it broadcasts player_healed to everyone
-                multiplayer.room.send("heal_player", { targetId: ally.id, amount: healAmt });
+                multiplayer.safeSend("heal_player", { targetId: ally.id, amount: healAmt });
               } else {
                 // Single player mode heal
                 this.player.hp += healAmt;
@@ -1481,7 +1483,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.flipX = (enemy.x > targetPlayer.x);
         
         if (multiplayer.room) {
-          multiplayer.room.send("enemy_attack", { id: enemy.id, anim: attackAnim });
+          multiplayer.safeSend("enemy_attack", { id: enemy.id, anim: attackAnim });
         }
         
         enemy.targetEnemy = targetPlayer;
@@ -1607,7 +1609,9 @@ export default class GameScene extends Phaser.Scene {
             anim: e.anims.currentAnim ? e.anims.currentAnim.key : 'walk',
             flipX: e.flipX
           }));
-        multiplayer.room.send("host_update_enemies", enemyData);
+        if (multiplayer.canSend()) {
+          multiplayer.safeSend("host_update_enemies", enemyData);
+        }
       }
     }
   }
@@ -1820,7 +1824,7 @@ export default class GameScene extends Phaser.Scene {
         }
         
         if (multiplayer.room) {
-          multiplayer.room.send("spawn_player_projectile", { x: spawnX, y: spawnY, angle: angle, speed: speed, damage: dmg, projConfig: projConfig });
+          multiplayer.safeSend("spawn_player_projectile", { x: spawnX, y: spawnY, angle: angle, speed: speed, damage: dmg, projConfig: projConfig });
         }
         this.time.delayedCall(2000, () => { if (arrow && arrow.scene) arrow.destroy(); });
       } else {
@@ -1853,7 +1857,7 @@ export default class GameScene extends Phaser.Scene {
         }
         
         if (multiplayer.room) {
-          multiplayer.room.send("spawn_projectile", { x: spawnX, y: spawnY, angle: angle, speed: speed, damage: dmg, projConfig: projConfig });
+          multiplayer.safeSend("spawn_projectile", { x: spawnX, y: spawnY, angle: angle, speed: speed, damage: dmg, projConfig: projConfig });
         }
         this.time.delayedCall(3000, () => { if (projectile && projectile.scene) projectile.destroy(); });
       }
@@ -1871,7 +1875,7 @@ export default class GameScene extends Phaser.Scene {
           attacker.hitTargets.add(enemy);
 
           if (multiplayer.room) {
-            multiplayer.room.send("damage_enemy", { id: enemy.id, damage: dmg, sourceX: attacker.x, sourceY: attacker.y });
+            multiplayer.safeSend("damage_enemy", { id: enemy.id, damage: dmg, sourceX: attacker.x, sourceY: attacker.y });
           } else {
             this.showFloatingText(enemy.x, enemy.y - 40, `-${dmg}`, '#ffffff');
             this.damageEnemyLocal(enemy, dmg, attacker.x, attacker.y);
@@ -1896,7 +1900,7 @@ export default class GameScene extends Phaser.Scene {
           }
 
           if (multiplayer.room) {
-            multiplayer.room.send("damage_player", { targetId: multiplayer.room.sessionId, damage: dmg, sourceX: attacker.x, sourceY: attacker.y });
+            multiplayer.safeSend("damage_player", { targetId: multiplayer.room.sessionId, damage: dmg, sourceX: attacker.x, sourceY: attacker.y });
           } else {
             this.player.hp -= dmg;
             this.showFloatingText(this.player.x, this.player.y - 40, `-${dmg}`, '#ff0000');
@@ -2050,4 +2054,5 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 }
+
 

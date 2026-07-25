@@ -7,22 +7,35 @@
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
-    <div id="start-screen" class="lobby-screen">
-      <h1>OURBASE</h1>
-      <div class="lobby-box">
-        <label>YOUR NAME</label>
-        <input type="text" id="mp-name" value="Player" />
-        
-        <button id="mp-btn-create" class="action-btn create-btn">🎮 CREATE NEW ROOM</button>
-        
-        <div class="divider">
-          <span>OR JOIN EXISTING</span>
+    <!-- ── SPLASH SCREEN ─────────────────────────── -->
+    <div id="splash-screen">
+      <div id="splash-title">OURBASE</div>
+      <button id="splash-start-btn">▶ START GAME</button>
+    </div>
+    <!-- ── LOBBY SCREEN ─────────────────────────── -->
+    <div id="start-screen" class="lobby-screen" style="display: none;">
+      <div class="lobby-panel">
+        <div class="lobby-header">
+          <span class="lobby-logo">OURBASE</span>
+          <span class="lobby-subtitle">MULTIPLAYER</span>
         </div>
-        
-        <input type="number" id="mp-room-id" placeholder="Enter Room Code" />
-        <button id="mp-btn-join" class="action-btn join-btn">🔑 JOIN ROOM</button>
-        
-        <div id="mp-error" class="error-msg" style="display: none;"></div>
+        <div class="lobby-body">
+          <!-- Username -->
+          <div class="lobby-field">
+            <label for="mp-name">USERNAME</label>
+            <input type="text" id="mp-name" value="Player" maxlength="16" autocomplete="off" />
+          </div>
+          <!-- Actions -->
+          <div class="lobby-actions">
+            <button id="mp-btn-create" class="lbtn lbtn-create">🎮 CREATE ROOM</button>
+            <div class="lobby-or"><span>OR</span></div>
+            <div class="lobby-join-row">
+              <input type="number" id="mp-room-id" placeholder="Room Code" />
+              <button id="mp-btn-join" class="lbtn lbtn-join">JOIN</button>
+            </div>
+          </div>
+          <div id="mp-error" class="error-msg" style="display: none;"></div>
+        </div>
       </div>
     </div>
     
@@ -135,6 +148,27 @@
     <div id="html-minimap" style="display: none;">
       <div id="minimap-bg"></div>
       <div id="minimap-entities"></div>
+    </div>
+
+    <!-- Ping Display -->
+    <div id="ping-display" style="display: none;">
+      <span id="ping-dot" class="ping-dot"></span>
+      <span id="ping-value">-- ms</span>
+    </div>
+
+    <!-- In-Game Gear Button -->
+    <button id="ingame-gear-btn" style="display: none;" title="Settings">
+      ⚙
+    </button>
+
+    <!-- In-Game Settings Menu -->
+    <div id="ingame-settings-menu" style="display: none;">
+      <div class="settings-modal">
+        <div class="settings-title">⚙ SETTINGS</div>
+        <button class="settings-item" id="settings-back-lobby">🔄 Pilih Karakter Ulang</button>
+        <button class="settings-item settings-exit" id="settings-exit-game">🚪 Keluar Game</button>
+        <button class="settings-item settings-cancel" id="settings-cancel">✕ Tutup</button>
+      </div>
     </div>
 
     <script type="module" src="./src/main.js"></script>

@@ -119,7 +119,7 @@ export const CHARACTER_CONFIG = {
     animations: {
       idle: { frames: 6, rate: 8, repeat: -1 },
       walk: { frames: 8, rate: 10, repeat: -1 },
-      attack: { frames: 7, rate: 10, repeat: 0 },
+      attack: { frames: 6, rate: 10, repeat: 0 },
       death: { frames: 4, rate: 8, repeat: 0 },
       hurt: { frames: 4, rate: 8, repeat: 0 }
     }
@@ -140,6 +140,24 @@ export const CHARACTER_CONFIG = {
       attack2: { frames: 8, rate: 10, repeat: 0 },
       death: { frames: 7, rate: 8, repeat: 0 },
       hurt: { frames: 3, rate: 8, repeat: 0 }
+    }
+  },
+  nox: {
+    name: 'Nox',
+    folder: 'nox',
+    frameWidth: 120,
+    frameHeight: 80,
+    hp: 130,
+    attack: 25,
+    speed: 80,
+    scale: 1.5,
+    animations: {
+      idle: { frames: 10, rate: 8, repeat: -1 },
+      walk: { frames: 10, rate: 10, repeat: -1 },
+      attack: { frames: 4, rate: 10, repeat: 0 },
+      attack2: { frames: 6, rate: 10, repeat: 0 },
+      death: { frames: 10, rate: 8, repeat: 0 },
+      hurt: { frames: 1, rate: 8, repeat: 0 }
     }
   },
   lunaria: {

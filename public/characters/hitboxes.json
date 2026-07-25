@@ -197,6 +197,28 @@
       "attackOx": 0,
       "attackOy": 0,
       "attackFrame": 1
+    },
+    "attack": {
+      "bodyW": 30,
+      "bodyH": 40,
+      "offsetX": 110,
+      "offsetY": 105,
+      "attackW": 50,
+      "attackH": 50,
+      "attackOx": 125,
+      "attackOy": 125,
+      "attackFrame": 5
+    },
+    "attack2": {
+      "bodyW": 30,
+      "bodyH": 40,
+      "offsetX": 110,
+      "offsetY": 105,
+      "attackW": 60,
+      "attackH": 60,
+      "attackOx": 125,
+      "attackOy": 125,
+      "attackFrame": 5
     }
   },
   "orc": {
@@ -217,6 +239,48 @@
       "attackOx": 61.5,
       "attackOy": 48.166666666666664,
       "attackFrame": 4
+    }
+  },
+  "nox": {
+    "stats": {
+      "hp": 130,
+      "attack": 25,
+      "speed": 80,
+      "attackType": "melee",
+      "attackRange": 0
+    },
+    "idle": {
+      "bodyW": 30,
+      "bodyH": 40,
+      "offsetX": 55,
+      "offsetY": 50,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    },
+    "attack": {
+      "bodyW": 30,
+      "bodyH": 40,
+      "offsetX": 55,
+      "offsetY": 50,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 60,
+      "attackOy": 40,
+      "attackFrame": 2
+    },
+    "attack2": {
+      "bodyW": 30,
+      "bodyH": 40,
+      "offsetX": 55,
+      "offsetY": 50,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 60,
+      "attackOy": 40,
+      "attackFrame": 3
     }
   },
   "shifu": {
@@ -312,6 +376,165 @@
       "attackOx": 37.692307692307686,
       "attackOy": 48.46153846153845,
       "attackFrame": 5
+    }
+  },
+  "kael": {
+    "stats": {
+      "hp": 110,
+      "attack": 35,
+      "speed": 170,
+      "attackType": "melee",
+      "attackRange": 0
+    },
+    "idle": {
+      "bodyW": 17.500000000000004,
+      "bodyH": 50.416666666666664,
+      "offsetX": 89.16666666666667,
+      "offsetY": 63.75000000000001,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    },
+    "walk": {
+      "bodyW": 13.750000000000004,
+      "bodyH": 21.25,
+      "offsetX": 89.16666666666667,
+      "offsetY": 92.91666666666667,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    },
+    "attack": {
+      "bodyW": 17.500000000000004,
+      "bodyH": 50.416666666666664,
+      "offsetX": 89.16666666666667,
+      "offsetY": 63.75000000000001,
+      "attackW": 56.25,
+      "attackH": 64.58333333333333,
+      "attackOx": 75.41666666666666,
+      "attackOy": 50.41666666666666,
+      "attackFrame": 4
+    },
+    "attack2": {
+      "bodyW": 17.500000000000004,
+      "bodyH": 50.416666666666664,
+      "offsetX": 89.16666666666667,
+      "offsetY": 63.75000000000001,
+      "attackW": 113.33333333333333,
+      "attackH": 81.66666666666666,
+      "attackOx": 62.91666666666666,
+      "attackOy": 33.74999999999999,
+      "attackFrame": 4
+    }
+  },
+  "lucifer": {
+    "stats": {
+      "hp": 130,
+      "attack": 40,
+      "speed": 160,
+      "attackType": "melee",
+      "attackRange": 0
+    },
+    "attack": {
+      "bodyW": 37.5,
+      "bodyH": 50,
+      "offsetX": 81.25,
+      "offsetY": 75,
+      "attackW": 85.83333333333333,
+      "attackH": 60.83333333333333,
+      "attackOx": 99.16666666666666,
+      "attackOy": 66.66666666666666,
+      "attackFrame": 3
+    },
+    "attack2": {
+      "bodyW": 37.5,
+      "bodyH": 50,
+      "offsetX": 81.25,
+      "offsetY": 75,
+      "attackW": 97.5,
+      "attackH": 83.75,
+      "attackOx": 89.16666666666666,
+      "attackOy": 44.999999999999986,
+      "attackFrame": 3
+    },
+    "idle": {
+      "bodyW": 20.416666666666668,
+      "bodyH": 50,
+      "offsetX": 92.08333333333333,
+      "offsetY": 79.16666666666667,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    },
+    "walk": {
+      "bodyW": 15.416666666666668,
+      "bodyH": 16.66666666666667,
+      "offsetX": 92.08333333333333,
+      "offsetY": 112.5,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    }
+  },
+  "mystic": {
+    "stats": {
+      "hp": 70,
+      "attack": 45,
+      "speed": 80,
+      "attackType": "melee",
+      "attackRange": 0
+    },
+    "idle": {
+      "bodyW": 35,
+      "bodyH": 66.66666666666667,
+      "offsetX": 90.5,
+      "offsetY": 61.666666666666664,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    },
+    "walk": {
+      "bodyW": 26.666666666666664,
+      "bodyH": 28.333333333333336,
+      "offsetX": 93.27777777777777,
+      "offsetY": 111.66666666666667,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    },
+    "attack": {
+      "bodyW": 35,
+      "bodyH": 66.66666666666667,
+      "offsetX": 90.5,
+      "offsetY": 61.666666666666664,
+      "attackW": 75,
+      "attackH": 70.55555555555556,
+      "attackOx": 130.55555555555557,
+      "attackOy": 28.333333333333336,
+      "attackFrame": 5
+    },
+    "attack2": {
+      "bodyW": 35,
+      "bodyH": 66.66666666666667,
+      "offsetX": 90.5,
+      "offsetY": 61.666666666666664,
+      "attackW": 83.88888888888889,
+      "attackH": 77.77777777777777,
+      "attackOx": 147.7777777777778,
+      "attackOy": 40,
+      "attackFrame": 6
     }
   }
 }

@@ -9,6 +9,16 @@
           "count": 1
         },
         {
+          "type": "blood",
+          "count": 1
+        }
+      ],
+      [
+        {
+          "type": "demon",
+          "count": 1
+        },
+        {
           "type": "slime",
           "count": 1
         }
@@ -31,10 +41,6 @@
         {
           "type": "demon",
           "count": 1
-        },
-        {
-          "type": "kaizer",
-          "count": 1
         }
       ],
       [
@@ -43,29 +49,7 @@
           "count": 1
         },
         {
-          "type": "kaizer",
-          "count": 1
-        },
-        {
-          "type": "demon",
-          "count": 1
-        }
-      ],
-      [
-        {
-          "type": "blood",
-          "count": 1
-        },
-        {
-          "type": "kaizer",
-          "count": 1
-        },
-        {
-          "type": "lunaria",
-          "count": 1
-        },
-        {
-          "type": "kaizer",
+          "type": "slime",
           "count": 1
         }
       ]
@@ -77,23 +61,21 @@
     "waves": [
       [
         {
-          "type": "slime",
+          "type": "blood",
           "count": 1
         },
         {
-          "type": "slime",
+          "type": "demon",
           "count": 1
         },
         {
-          "type": "slime",
+          "type": "kaizer",
           "count": 1
-        },
+        }
+      ],
+      [
         {
-          "type": "slime",
-          "count": 1
-        },
-        {
-          "type": "slime",
+          "type": "nox",
           "count": 1
         }
       ]

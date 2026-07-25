@@ -50,6 +50,16 @@
     "source": "rect"
   },
   {
+    "x": 16,
+    "y": 528,
+    "width": 48,
+    "height": 32,
+    "type": "portal",
+    "label": "Dust",
+    "targetMap": "1",
+    "source": "rect"
+  },
+  {
     "source": "stroke",
     "type": "red",
     "size": 3,

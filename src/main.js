@@ -239,6 +239,146 @@ function showSelectionScreen() {
   };
 }
 
+// ── In-Game UI: Gear, Settings, Ping ───────────────────────────────────────
+const gearBtn       = document.getElementById('ingame-gear-btn');
+const settingsMenu  = document.getElementById('ingame-settings-menu');
+const pingDisplay   = document.getElementById('ping-display');
+const pingValue     = document.getElementById('ping-value');
+const pingDot       = document.getElementById('ping-dot');
+
+function showIngameUI(show) {
+  const d = show ? 'flex' : 'none';
+  if (gearBtn) gearBtn.style.display = show ? 'flex' : 'none';
+  if (pingDisplay) pingDisplay.style.display = d;
+}
+
+function hideSettingsMenu() {
+  if (settingsMenu) settingsMenu.style.display = 'none';
+}
+
+if (gearBtn) {
+  gearBtn.addEventListener('click', () => {
+    settingsMenu.style.display = settingsMenu.style.display === 'none' ? 'flex' : 'none';
+  });
+}
+
+document.getElementById('settings-cancel')?.addEventListener('click', hideSettingsMenu);
+
+document.getElementById('settings-back-lobby')?.addEventListener('click', () => {
+  hideSettingsMenu();
+  if (multiplayer.room) {
+    multiplayer.isLeaving = true;
+    multiplayer.room.send('force_back_to_lobby');
+  } else {
+    location.reload();
+  }
+});
+
+document.getElementById('settings-exit-game')?.addEventListener('click', () => {
+  hideSettingsMenu();
+  if (multiplayer.room) {
+    multiplayer.isLeaving = true;
+    multiplayer.room.send('force_exit_game');
+  } else {
+    location.reload();
+  }
+});
+
+// Ping measurement — sends _client_ping, server echoes back _client_pong
+let pingInterval = null;
+let _pingStart = 0;
+
+function updatePingDisplay(ms) {
+  if (pingValue) pingValue.innerText = `${ms} ms`;
+  if (pingDot) {
+    pingDot.className = 'ping-dot';
+    if (ms > 200) pingDot.classList.add('ping-high');
+    else if (ms > 80) pingDot.classList.add('ping-medium');
+  }
+}
+
+function startPingLoop() {
+  if (pingInterval) clearInterval(pingInterval);
+
+  // Listen for pong reply to calculate RTT
+  if (multiplayer.room) {
+    multiplayer.room.onMessage('_client_pong', () => {
+      const ms = Math.round(performance.now() - _pingStart);
+      updatePingDisplay(ms);
+    });
+  }
+
+  pingInterval = setInterval(() => {
+    if (!multiplayer.canSend()) return;
+    _pingStart = performance.now();
+    multiplayer.safeSend('_client_ping');
+  }, 3000);
+}
+
+// Handle go_back_to_lobby broadcast
+function listenForSettingsEvents() {
+  if (!multiplayer.room) return;
+  multiplayer.room.onMessage('go_back_to_lobby', () => {
+    showIngameUI(false);
+    hideSettingsMenu();
+    if (pingInterval) clearInterval(pingInterval);
+    // Hide in-game HTML elements
+    const vc = document.getElementById('virtual-controls');
+    if (vc) vc.style.display = 'none';
+    const respawn = document.getElementById('respawn-overlay');
+    if (respawn) respawn.style.display = 'none';
+    const minimap = document.getElementById('html-minimap');
+    if (minimap) minimap.style.display = 'none';
+    // Reset transition flag so the game can start again
+    hasTransitioned = false;
+    // Go back to selection screen
+    const selScreen = document.getElementById('selection-screen');
+    if (selScreen) selScreen.style.display = 'flex';
+    game.scene.stop('GameScene');
+    game.scene.start('SelectionScene');
+  });
+
+  multiplayer.room.onMessage('go_exit_game', () => {
+    multiplayer.room.leave();
+    location.reload();
+  });
+}
+
+// ── Splash Screen → Lobby ──────────────────────────────────────────────────
+const splashScreen = document.getElementById('splash-screen');
+const splashStartBtn = document.getElementById('splash-start-btn');
+
+if (splashStartBtn) {
+  splashStartBtn.addEventListener('click', () => {
+    // Request fullscreen landscape on click
+    const docElm = document.documentElement;
+    const goFS = docElm.requestFullscreen || docElm.webkitRequestFullscreen || docElm.mozRequestFullScreen;
+    if (goFS) {
+      goFS.call(docElm).catch(() => {}).finally(() => {
+        try {
+          if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(() => {});
+          }
+        } catch(e) {}
+      });
+    } else {
+      try {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+      } catch(e) {}
+    }
+
+    // Fade out splash, show lobby
+    splashScreen.classList.add('splash-fade-out');
+    setTimeout(() => {
+      splashScreen.style.display = 'none';
+      const startScreen = document.getElementById('start-screen');
+      if (startScreen) startScreen.style.display = 'flex';
+    }, 500);
+  });
+}
+
 // Multiplayer Join/Create Listeners
 const btnCreate = document.getElementById('mp-btn-create');
 const btnJoin = document.getElementById('mp-btn-join');
@@ -251,8 +391,10 @@ function showError(msg) {
   errorDiv.style.display = 'block';
 }
 
+let hasTransitioned = false;
+
 function setupRoomListeners() {
-  let hasTransitioned = false;
+  hasTransitioned = false;
   multiplayer.room.state.players.onAdd(() => renderPlayerList());
   multiplayer.room.state.players.onRemove(() => renderPlayerList());
   multiplayer.room.state.onChange(() => {
@@ -264,8 +406,11 @@ function setupRoomListeners() {
       if (typeof window.startGame === 'function') {
         window.startGame();
       }
+      showIngameUI(true);
+      startPingLoop();
     }
   });
+  listenForSettingsEvents();
 }
 
 btnCreate.addEventListener('click', async () => {
@@ -278,7 +423,7 @@ btnCreate.addEventListener('click', async () => {
     showSelectionScreen();
   } catch (err) {
     btnCreate.disabled = false;
-    btnCreate.innerText = '🎮 CREATE NEW ROOM';
+    btnCreate.innerText = '🎮 CREATE ROOM';
     showError('Failed to create room: ' + err.message);
   }
 });
@@ -300,7 +445,7 @@ btnJoin.addEventListener('click', async () => {
     document.getElementById('select-hero-btn').innerText = "WAITING FOR HOST...";
   } catch (err) {
     btnJoin.disabled = false;
-    btnJoin.innerText = '🔑 JOIN ROOM';
+    btnJoin.innerText = 'JOIN';
     showError('Room not found or full!');
   }
 });
