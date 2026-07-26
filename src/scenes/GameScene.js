@@ -1479,10 +1479,13 @@ export default class GameScene extends Phaser.Scene {
       let velocityY = 0;
       const speed = CHARACTER_CONFIG[this.characterKey].speed;
 
-      // HTML Virtual Joystick Logic
       if (this.joystickData && this.joystickData.active) {
-        velocityX = this.joystickData.x * speed;
-        velocityY = this.joystickData.y * speed;
+        let jx = Number(this.joystickData.x);
+        let jy = Number(this.joystickData.y);
+        if (isNaN(jx)) jx = 0;
+        if (isNaN(jy)) jy = 0;
+        velocityX = jx * speed;
+        velocityY = jy * speed;
         if (Math.abs(velocityX) > 0) this.player.flipX = velocityX < 0;
       } else {
         // Keyboard Logic Fallback
@@ -1637,11 +1640,24 @@ export default class GameScene extends Phaser.Scene {
         }
       });
       
-      // Player
+      // Local Player
       if (this.player && this.player.active) {
         const px = this.player.x * scaleX;
         const py = this.player.y * scaleY;
-        html += `<div class="minimap-dot minimap-player" style="left: ${px}px; top: ${py}px;"></div>`;
+        const faceUrl = `/characters/${CHARACTER_CONFIG[this.characterKey]?.folder || 'lucien'}/face.png`;
+        html += `<div class="minimap-player-avatar local" style="left: ${px}px; top: ${py}px; background-image: url('${faceUrl}')"></div>`;
+      }
+      
+      // Remote Players
+      if (multiplayer.room) {
+        this.remotePlayers.forEach(rp => {
+          if (rp.sprite && rp.sprite.active && rp.hp > 0) {
+            const px = rp.sprite.x * scaleX;
+            const py = rp.sprite.y * scaleY;
+            const faceUrl = `/characters/${CHARACTER_CONFIG[rp.charKey || 'lucien']?.folder || 'lucien'}/face.png`;
+            html += `<div class="minimap-player-avatar remote" style="left: ${px}px; top: ${py}px; background-image: url('${faceUrl}')"></div>`;
+          }
+        });
       }
       
       minimapEntities.innerHTML = html;
@@ -1798,16 +1814,20 @@ export default class GameScene extends Phaser.Scene {
       const touch = e.touches[0] || e.changedTouches[0];
       if (!touch) return;
       
-      const centerX = baseRect.left + baseRect.width / 2;
-      const centerY = baseRect.top + baseRect.height / 2;
+      const rectWidth = (baseRect && baseRect.width > 0) ? baseRect.width : 120;
+      const rectLeft = (baseRect && baseRect.left !== undefined) ? baseRect.left : 40;
+      const rectTop = (baseRect && baseRect.top !== undefined) ? baseRect.top : (window.innerHeight - 160);
+      
+      const centerX = rectLeft + rectWidth / 2;
+      const centerY = rectTop + rectWidth / 2;
       
       let dx = touch.clientX - centerX;
       let dy = touch.clientY - centerY;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      const maxRadius = baseRect.width / 2;
+      const maxRadius = rectWidth / 2;
       
       if (distance > maxRadius) {
-        const ratio = maxRadius / distance;
+        const ratio = maxRadius / (distance || 1);
         dx *= ratio;
         dy *= ratio;
       }
@@ -1815,12 +1835,20 @@ export default class GameScene extends Phaser.Scene {
       stick.style.transform = `translate(${dx}px, ${dy}px)`;
       stick.style.transition = 'none';
       
-      this.joystickData.x = dx / maxRadius;
-      this.joystickData.y = dy / maxRadius;
+      this.joystickData.x = maxRadius > 0 ? (dx / maxRadius) : 0;
+      this.joystickData.y = maxRadius > 0 ? (dy / maxRadius) : 0;
+      
+      if (isNaN(this.joystickData.x)) this.joystickData.x = 0;
+      if (isNaN(this.joystickData.y)) this.joystickData.y = 0;
+      
       this.joystickData.active = true;
     };
     
-    zone.addEventListener('touchstart', (e) => { baseRect = base.getBoundingClientRect(); handleTouch(e); }, { passive: false });
+    zone.addEventListener('touchstart', (e) => { 
+      baseRect = base.getBoundingClientRect(); 
+      handleTouch(e); 
+    }, { passive: false });
+    
     zone.addEventListener('touchmove', handleTouch, { passive: false });
     
     const endTouch = () => {

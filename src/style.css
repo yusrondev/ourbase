@@ -974,12 +974,27 @@ body {
   transform: translate(-50%, -50%);
 }
 
-.minimap-player {
-  background-color: #00ff00;
-  width: 6px;
-  height: 6px;
-  z-index: 2;
-  box-shadow: 0 0 4px #00ff00;
+.minimap-player-avatar {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  background-color: #222;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
+.minimap-player-avatar.local {
+  border: 2px solid #4ade80;
+  box-shadow: 0 0 5px #4ade80;
+  z-index: 11;
+}
+
+.minimap-player-avatar.remote {
+  border: 1px solid #38bdf8;
+  box-shadow: 0 0 4px #38bdf8;
 }
 
 .minimap-enemy {
