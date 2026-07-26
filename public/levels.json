@@ -1,15 +1,11 @@
 [
   {
     "level": 1,
-    "map": "1",
+    "map": "Dust",
     "waves": [
       [
         {
           "type": "slime",
-          "count": 1
-        },
-        {
-          "type": "blood",
           "count": 1
         }
       ],
@@ -27,56 +23,32 @@
   },
   {
     "level": 2,
-    "map": "Gemini_Generated_Image_1cigd21cigd21cig",
+    "map": "Castle",
     "waves": [
-      [
-        {
-          "type": "slime",
-          "count": 1
-        },
-        {
-          "type": "blood",
-          "count": 1
-        },
-        {
-          "type": "demon",
-          "count": 1
-        }
-      ],
       [
         {
           "type": "lunaria",
-          "count": 1
+          "count": 1,
+          "x": 512,
+          "y": 272
+        },
+        {
+          "type": "nox",
+          "count": 1,
+          "x": 480,
+          "y": 512
         },
         {
           "type": "slime",
-          "count": 1
-        }
-      ]
-    ]
-  },
-  {
-    "level": 3,
-    "map": "Gemini_Generated_Image_h0yapxh0yapxh0ya",
-    "waves": [
-      [
-        {
-          "type": "blood",
-          "count": 1
+          "count": 1,
+          "x": 1248,
+          "y": 144
         },
         {
-          "type": "demon",
-          "count": 1
-        },
-        {
-          "type": "kaizer",
-          "count": 1
-        }
-      ],
-      [
-        {
-          "type": "nox",
-          "count": 1
+          "type": "slime",
+          "count": 1,
+          "x": 1200,
+          "y": 640
         }
       ]
     ]

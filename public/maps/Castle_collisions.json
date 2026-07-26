@@ -1,0 +1,38 @@
+{
+  "width": 1408,
+  "height": 768,
+  "zones": [
+    {
+      "x": 144,
+      "y": 128,
+      "width": 32,
+      "height": 32,
+      "type": "spawn_player",
+      "source": "rect"
+    },
+    {
+      "x": 144,
+      "y": 624,
+      "width": 32,
+      "height": 32,
+      "type": "spawn_player",
+      "source": "rect"
+    },
+    {
+      "x": 176,
+      "y": 624,
+      "width": 32,
+      "height": 32,
+      "type": "spawn_player",
+      "source": "rect"
+    },
+    {
+      "x": 176,
+      "y": 128,
+      "width": 32,
+      "height": 32,
+      "type": "spawn_player",
+      "source": "rect"
+    }
+  ]
+}

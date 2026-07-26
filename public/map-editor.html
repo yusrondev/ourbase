@@ -36,7 +36,9 @@
     .main{display:flex;flex:1;overflow:hidden}
 
     /* ── Sidebar ── */
-    aside{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+    aside{width:260px;min-width:180px;max-width:480px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;position:relative}
+    .sidebar-resize{position:absolute;top:0;right:0;width:5px;height:100%;cursor:col-resize;z-index:10;background:transparent;transition:background .15s}
+    .sidebar-resize:hover,.sidebar-resize.dragging{background:var(--accent)}
     .ss{padding:9px 10px 7px;border-bottom:1px solid var(--border);flex-shrink:0}
     .st{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
     .ir{display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px}
@@ -88,14 +90,69 @@
     .tab-content.active{display:flex}
     
     /* Level Configurator */
-    .level-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--surface2);cursor:pointer}
-    .level-item.active{background:#6c63ff22;border-left:2px solid var(--accent)}
-    .level-item:hover{background:var(--surface)}
-    .wave-list{padding:10px;overflow-y:auto;flex:1}
-    .wave-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px}
-    .wave-header{display:flex;justify-content:space-between;font-weight:600;font-size:11px;margin-bottom:6px;color:var(--cyan)}
-    .enemy-row{display:flex;gap:4px;align-items:center;margin-bottom:4px}
-    .enemy-row select, .enemy-row input{background:var(--bg);padding:2px 4px;font-size:10px;height:20px}
+    .level-item{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid var(--border);cursor:pointer;gap:8px}
+    .level-item:hover{background:var(--surface2)}
+    .level-item.active{background:#6c63ff22;border-left:3px solid var(--accent)}
+    .level-item-num{font-size:10px;font-weight:700;color:var(--accent);min-width:20px}
+    .level-item-map{flex:1;font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .level-item-waves{font-size:9px;color:var(--muted);background:var(--surface2);border-radius:10px;padding:1px 6px}
+    
+    /* Wave list */
+    .wave-list{padding:12px 10px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px;position:relative;z-index:1;min-height:0}
+    .wave-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:2px}
+    .wave-header{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:11px;padding:8px 12px;background:rgba(34,211,238,.07);border-bottom:1px solid var(--border);color:var(--cyan)}
+    
+    /* Enemy card in wave */
+    .enemy-card{margin:6px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0;overflow:hidden;transition:border-color .15s}
+    .enemy-card:hover{border-color:var(--accent)}
+    .enemy-card-head{display:flex;align-items:center;gap:6px;padding:6px 8px}
+    .enemy-type-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+    .enemy-card-head select{flex:1;font-size:11px;font-weight:600;height:26px;border-radius:5px}
+    .enemy-count-wrap{display:flex;align-items:center;gap:3px}
+    .enemy-count-wrap label{font-size:10px;color:var(--muted)}
+    .enemy-count-wrap input{width:44px;font-size:11px;text-align:center;border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:5px;padding:3px;height:26px}
+    .enemy-del-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 4px;border-radius:4px;transition:color .15s;line-height:1}
+    .enemy-del-btn:hover{color:var(--red)}
+
+    /* Spawn config section */
+    .spawn-section{padding:6px 8px 8px;border-top:1px solid var(--border);background:rgba(0,0,0,.2)}
+    .spawn-section-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;display:flex;align-items:center;gap:4px}
+    .spawn-tabs{display:flex;gap:3px;margin-bottom:6px}
+    .spawn-tab{flex:1;text-align:center;padding:4px 6px;font-size:10px;font-weight:600;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);cursor:pointer;transition:all .15s}
+    .spawn-tab:hover{border-color:var(--accent);color:var(--text)}
+    .spawn-tab.active{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.12)}
+    .spawn-content{min-height:24px}
+    .spawn-hint{font-size:10px;color:var(--muted);font-style:italic;padding:4px 0}
+    .spawn-zone-row{display:flex;align-items:center;gap:6px}
+    .spawn-zone-row select{flex:1;font-size:11px;height:28px;border-radius:5px}
+    .spawn-zone-coord{font-size:9px;color:var(--cyan);font-family:'JetBrains Mono',monospace;white-space:nowrap}
+    .spawn-xy-row{display:flex;align-items:center;gap:5px}
+    .spawn-xy-row label{font-size:10px;color:var(--muted);font-weight:600;min-width:12px}
+    .spawn-xy-row input{flex:1;font-size:11px;height:28px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text);padding:0 6px;text-align:center}
+    .spawn-pick-btn{padding:4px 8px;font-size:10px;border-radius:5px;border:1px solid var(--yellow);color:var(--yellow);background:rgba(251,191,36,.08);cursor:pointer;white-space:nowrap;transition:all .15s;font-family:'Outfit',sans-serif}
+    .spawn-pick-btn:hover,.spawn-pick-btn.picking{background:rgba(251,191,36,.2);border-color:var(--yellow);color:var(--yellow)}
+    .spawn-pick-btn.picking{animation:pickPulse 1s ease infinite}
+    @keyframes pickPulse{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,.4)}50%{box-shadow:0 0 0 4px rgba(251,191,36,.1)}}
+    .pick-overlay-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(251,191,36,.9);color:#000;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;pointer-events:none;z-index:50;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+
+    /* Map Sequence Tab */
+    .seq-list{flex:1;overflow-y:auto;padding:6px}
+    .seq-item{display:flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:5px 7px;margin-bottom:5px;transition:border-color .15s}
+    .seq-item:hover{border-color:var(--accent)}
+    .seq-item.seq-dragging{opacity:.4;border-style:dashed}
+    .seq-item.seq-over{border-color:var(--cyan);border-style:dashed}
+    .seq-num{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--muted);min-width:18px;text-align:center;background:var(--bg);border-radius:3px;padding:1px 3px}
+    .seq-map-name{flex:1;font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+    .seq-map-sub{font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+    .seq-badge{font-size:9px;padding:1px 5px;border-radius:10px;border:1px solid;margin-left:2px;white-space:nowrap}
+    .seq-move{display:flex;flex-direction:column;gap:1px}
+    .seq-move button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;padding:0 2px;line-height:1;border-radius:2px;transition:color .1s}
+    .seq-move button:hover{color:var(--accent)}
+    .seq-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;border-radius:3px;transition:color .1s}
+    .seq-del:hover{color:var(--red)}
+    .seq-empty{font-size:10px;color:var(--muted);text-align:center;padding:20px;line-height:1.5}
+    .seq-add-row{padding:6px;border-top:1px solid var(--border);display:flex;gap:4px;flex-shrink:0}
+    .seq-add-row select{flex:1;font-size:10px}
   </style>
 </head>
 <body>
@@ -143,10 +200,12 @@
 
 <div class="main">
   <!-- ── Sidebar ── -->
-  <aside>
+  <aside id="sidebar">
+    <div class="sidebar-resize" id="sidebar-resize"></div>
     <div class="tabs">
       <div class="tab active" id="tab-btn-map">Map Editor</div>
       <div class="tab" id="tab-btn-levels">Levels</div>
+      <div class="tab" id="tab-btn-seq" style="font-size:10px">🗺 Sequence</div>
     </div>
     
     <!-- Map Editor Tab -->
@@ -168,7 +227,14 @@
     <!-- Info -->
     <div class="ss" style="flex-shrink:0">
       <div class="st">Info</div>
-      <div class="ir"><span class="lb">World</span><span class="vl" id="iw">800×600</span></div>
+      <div class="ir" style="align-items:center"><span class="lb">World</span>
+        <div style="display:flex;gap:2px">
+          <input type="number" id="inp-world-w" style="width:40px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:3px;font-size:9px;padding:1px 3px;text-align:center">
+          <span style="color:var(--muted)">×</span>
+          <input type="number" id="inp-world-h" style="width:40px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:3px;font-size:9px;padding:1px 3px;text-align:center">
+          <button class="tbtn" id="btn-apply-size" style="padding:1px 4px;font-size:9px" title="Apply Size">✓</button>
+        </div>
+      </div>
       <div class="ir"><span class="lb">Cursor</span><span class="vl" id="icur">—</span></div>
       <div class="ir"><span class="lb">Grid</span><span class="vl" id="igrid">16px</span></div>
       <div class="ir"><span class="lb">Zones</span><span class="vl" id="ict">0</span></div>
@@ -189,34 +255,57 @@
     </div>
     
     <!-- Levels Tab -->
-    <div class="tab-content" id="tab-levels">
-      <div class="ss" style="display:flex;justify-content:space-between;align-items:center">
-        <div class="st" style="margin:0">Levels</div>
-        <button class="tbtn" id="btn-add-level">+ Level</button>
+    <div class="tab-content" id="tab-levels" style="flex-direction:column">
+      <!-- Top: Level list + add button -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Levels</span>
+        <button class="tbtn success" id="btn-add-level" style="padding:2px 8px;font-size:10px">+ Level</button>
       </div>
-      <div id="levels-list" style="flex-shrink:0;max-height:30%;overflow-y:auto;border-bottom:1px solid var(--border)">
+      <div id="levels-list" style="flex-shrink:0;max-height:36%;overflow-y:auto;border-bottom:2px solid var(--border)">
         <!-- Levels go here -->
       </div>
-      <div class="ss" id="level-details" style="flex:1;display:flex;flex-direction:column;display:none;overflow:hidden">
-        <div class="field-row" style="display:flex;gap:5px;align-items:center;margin-bottom:10px">
-          <label style="font-size:11px;color:var(--muted)">Map:</label>
-          <select id="level-map-select" style="flex:1"></select>
+
+      <!-- Detail panel for selected level -->
+      <div id="level-details" style="display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0">
+        <!-- Map selector -->
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border);flex-shrink:0;background:rgba(108,99,255,.06);position:relative;z-index:2">
+          <span style="font-size:10px;color:var(--muted);font-weight:600;white-space:nowrap">Map:</span>
+          <select id="level-map-select" style="flex:1;font-size:11px;height:28px"></select>
+          <button class="tbtn" id="btn-add-wave" style="padding:2px 8px;font-size:10px;white-space:nowrap">+ Wave</button>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-          <div class="st" style="margin:0">Waves</div>
-          <button class="tbtn" id="btn-add-wave" style="padding:2px 6px;font-size:9px">+ Wave</button>
-        </div>
-        <div class="wave-list" id="waves-container">
-          <!-- Waves go here -->
-        </div>
+        <!-- Wave list (scrollable) -->
+        <div class="wave-list" id="waves-container"></div>
       </div>
-      <div style="padding:10px;border-top:1px solid var(--border)">
+
+      <div style="padding:8px;border-top:1px solid var(--border);flex-shrink:0">
         <button class="tbtn save-btn" id="btn-save-levels" style="width:100%;justify-content:center">💾 Save Levels</button>
+      </div>
+    </div>
+
+    <!-- Map Sequence Tab -->
+    <div class="tab-content" id="tab-seq" style="flex-direction:column">
+      <div class="ss" style="flex-shrink:0;border-bottom:1px solid var(--border)">
+        <div class="st" style="margin-bottom:4px">🗺 Map Sequence</div>
+        <div style="font-size:9px;color:var(--muted);line-height:1.5">Atur urutan map yang akan dimainkan. Drag atau gunakan ↑↓ untuk reorder. Map pertama = level awal game.</div>
+      </div>
+      <div class="seq-list" id="seq-list">
+        <div class="seq-empty">Memuat daftar sequence...<br><span style="color:var(--accent)">Loading</span></div>
+      </div>
+      <div class="seq-add-row">
+        <select id="seq-map-pick"></select>
+        <button class="tbtn success" id="btn-seq-add" style="font-size:10px;padding:3px 8px">+ Add</button>
+      </div>
+      <div style="padding:6px;border-top:1px solid var(--border);display:flex;gap:4px;flex-shrink:0">
+        <button class="tbtn warn" id="btn-seq-reset" style="flex:1;font-size:10px;justify-content:center">↺ Reset</button>
+        <button class="tbtn save-btn" id="btn-seq-save" style="flex:1;font-size:10px;justify-content:center">💾 Save</button>
       </div>
     </div>
   </aside>
 
-  <div class="cw" id="cw"><canvas id="ec"></canvas></div>
+  <div class="cw" id="cw">
+    <canvas id="ec"></canvas>
+    <div class="pick-overlay-hint" id="pick-overlay-hint" style="display:none">🎯 Click on map to set spawn position</div>
+  </div>
 </div>
 
 <footer>
@@ -290,12 +379,21 @@ function setupCanvas(){
   SCALE=Math.min(maxW/WORLD_W, maxH/WORLD_H, 2);
   canvas.width=Math.round(WORLD_W*SCALE);
   canvas.height=Math.round(WORLD_H*SCALE);
-  document.getElementById('iw').textContent=`${WORLD_W}×${WORLD_H}`;
+  document.getElementById('inp-world-w').value=WORLD_W;
+  document.getElementById('inp-world-h').value=WORLD_H;
   render();
 }
 function loadMapImage(src,cb){
   const img=new Image();
-  img.onload=()=>{mapImg=img;setupCanvas();if(cb)cb();};
+  img.onload=()=>{
+    mapImg=img;
+    if(img.width > 0 && img.height > 0){
+      WORLD_W=img.width;
+      WORLD_H=img.height;
+    }
+    setupCanvas();
+    if(cb)cb();
+  };
   img.onerror=()=>{mapImg=null;setupCanvas();if(cb)cb();};
   img.src=src+'?t='+Date.now();
 }
@@ -321,14 +419,102 @@ function renderMapList(){
   allMaps.forEach(m=>{
     const div=document.createElement('div');
     div.className='map-item'+(currentMap&&currentMap.name===m.name?' active':'');
-    div.innerHTML=`<div class="mi-dot ${m.hasCollision?'':'empty'}"></div><div class="mi-name">${m.name}</div>`;
-    div.addEventListener('click',()=>selectMap(m));
+    
+    // Left side info
+    const info=document.createElement('div');
+    info.style.cssText='display:flex;align-items:center;gap:6px;flex:1;min-width:0';
+    info.innerHTML=`<div class="mi-dot ${m.hasCollision?'':'empty'}"></div><div class="mi-name" title="${m.name}">${m.name}</div>`;
+    info.addEventListener('click',()=>selectMap(m));
+    div.appendChild(info);
+
+    // Rename button
+    const renameBtn=document.createElement('button');
+    renameBtn.className='mi-edit';
+    renameBtn.style.cssText='background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 4px;font-size:10px;margin-right:2px';
+    renameBtn.innerHTML='✏️';
+    renameBtn.title='Rename Map';
+    renameBtn.onclick=(e)=>{
+      e.stopPropagation();
+      const newName=prompt('Rename map to (alphanumeric, underscores, hyphens only):', m.name);
+      if(newName && newName.trim() && newName.trim()!==m.name){
+        renameMap(m.name, newName.trim());
+      }
+    };
+    div.appendChild(renameBtn);
+
+    // Delete button
+    const deleteBtn=document.createElement('button');
+    deleteBtn.className='mi-edit';
+    deleteBtn.style.cssText='background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 4px;font-size:10px';
+    deleteBtn.innerHTML='🗑️';
+    deleteBtn.title='Delete Map';
+    deleteBtn.onclick=(e)=>{
+      e.stopPropagation();
+      if(confirm(`Delete map "${m.name}"? This deletes the image, collision data, and level mappings!`)){
+        deleteMap(m.name);
+      }
+    };
+    div.appendChild(deleteBtn);
+
     el.appendChild(div);
   });
+  
   // Also update portal target selects
   document.getElementById('portal-target-map').innerHTML=allMaps.map(m=>`<option value="${m.name}">${m.name}</option>`).join('');
   document.getElementById('level-map-select').innerHTML=allMaps.map(m=>`<option value="${m.name}">${m.name}</option>`).join('');
 }
+
+async function renameMap(oldName, newName) {
+  const safeNewName = newName.replace(/[^a-zA-Z0-9_-]/g,'');
+  if(!safeNewName) { alert('Invalid map name! Only A-Z, 0-9, _ and - allowed.'); return; }
+  try {
+    const r = await fetch('/api/maps/rename', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ oldMapName: oldName, newMapName: safeNewName })
+    });
+    const j = await r.json();
+    if(j.ok) {
+      setStatus(`✅ Renamed map to "${safeNewName}"`);
+      await fetchMaps();
+      if (currentMap && currentMap.name === oldName) {
+        const found = allMaps.find(m => m.name === safeNewName);
+        if (found) selectMap(found);
+      }
+      if (typeof fetchLevels === 'function') fetchLevels();
+    } else {
+      alert(`Rename failed: ${j.error}`);
+    }
+  } catch(e) {
+    setStatus('❌ Rename error: ' + e.message);
+  }
+}
+
+async function deleteMap(mapName) {
+  try {
+    const r = await fetch('/api/maps/delete', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ mapName })
+    });
+    const j = await r.json();
+    if(j.ok) {
+      setStatus(`✅ Map "${mapName}" deleted`);
+      await fetchMaps();
+      if (currentMap && currentMap.name === mapName) {
+        currentMap = null;
+        clearEditor();
+        if(allMaps.length > 0) selectMap(allMaps[0]);
+      }
+      if (typeof fetchLevels === 'function') fetchLevels();
+    } else {
+      alert(`Delete failed: ${j.error}`);
+    }
+  } catch(e) {
+    setStatus('❌ Delete error: ' + e.message);
+  }
+}
+
 async function selectMap(m){
   if(currentMap&&currentMap.name!==m.name){
     if(zones.length||strokes.length){
@@ -402,6 +588,14 @@ document.getElementById('fi-upload').addEventListener('change',async e=>{
 
 // ─── Data import/export ─────────────────────────
 function exportData(){
+  // Read current input values directly to guarantee latest dimensions are used
+  const inpW = parseInt(document.getElementById('inp-world-w').value);
+  const inpH = parseInt(document.getElementById('inp-world-h').value);
+  if (inpW > 0 && inpH > 0) {
+    WORLD_W = inpW;
+    WORLD_H = inpH;
+  }
+
   const rectData=zones.map(z=>({
     x:Math.round(z.x),y:Math.round(z.y),
     width:Math.round(z.w),height:Math.round(z.h),
@@ -419,17 +613,37 @@ function exportData(){
   }));
   // Rasterize strokes to fine-grid rects for game physics
   const paintRects=rasterizeStrokes();
-  return [...rectData,...strokeData,...paintRects];
+  return {
+    width: WORLD_W,
+    height: WORLD_H,
+    zones: [...rectData,...strokeData,...paintRects]
+  };
 }
 function importData(raw){
-  zones=raw
+  let zonesList = [];
+  if (raw && !Array.isArray(raw)) {
+    if (raw.width) {
+      WORLD_W = raw.width;
+      document.getElementById('inp-world-w').value = WORLD_W;
+    }
+    if (raw.height) {
+      WORLD_H = raw.height;
+      document.getElementById('inp-world-h').value = WORLD_H;
+    }
+    zonesList = raw.zones || [];
+  } else if (Array.isArray(raw)) {
+    zonesList = raw;
+  }
+
+  zones=zonesList
     .filter(z=>z.source==='rect'||!z.source)
     .map(z=>({x:z.x,y:z.y,w:z.width,h:z.height,type:z.type,color:z.type,label:z.label,targetMap:z.targetMap}));
   // Restore strokes from raw stroke entries (NOT from rasterized paint rects)
-  strokes=raw
+  strokes=zonesList
     .filter(z=>z.source==='stroke')
     .map(s=>({color:s.type||'red',size:s.size||8,points:s.points||[]}));
   // 'paint' rects are ignored in editor — they are auto-regenerated on next Save
+  setupCanvas();
   selIdx=-1;updateZoneList();render();
 }
 
@@ -618,6 +832,82 @@ function render(){
     ctx.strokeStyle=cm.stroke;ctx.lineWidth=2;ctx.setLineDash([4,3]);
     ctx.strokeRect(r.x*SCALE+1,r.y*SCALE+1,r.w*SCALE-2,r.h*SCALE-2);ctx.setLineDash([]);
   }
+
+  // Draw Level Enemy Spawn Pins if in Levels tab
+  if (typeof currentActiveTab !== 'undefined' && currentActiveTab === 'levels') {
+    renderLevelEnemyPins();
+  }
+}
+
+function renderLevelEnemyPins() {
+  if (currentLevelIndex < 0 || currentLevelIndex >= allLevels.length) return;
+  const lv = allLevels[currentLevelIndex];
+  if (!lv || !lv.waves) return;
+
+  const currentPickedEnemy = window._currentlyPickingEnemy || null;
+
+  lv.waves.forEach((wave, wIdx) => {
+    wave.forEach((enemy, eIdx) => {
+      let ex = null, ey = null;
+      if (enemy.x !== undefined && enemy.y !== undefined) {
+        ex = enemy.x; ey = enemy.y;
+      } else if (enemy.spawnZone !== undefined && spawnZoneCache[lv.map]) {
+        const z = spawnZoneCache[lv.map][enemy.spawnZone];
+        if (z) { ex = z.x; ey = z.y; }
+      }
+
+      if (ex === null || ey === null) return;
+
+      const cx = ex * SCALE;
+      const cy = ey * SCALE;
+      const isSelected = (currentPickedEnemy === enemy);
+
+      ctx.save();
+      
+      // Outer glow pulse ring if selected
+      if (isSelected) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(236, 72, 153, 0.4)';
+        ctx.fill();
+        ctx.strokeStyle = '#ec4899';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      }
+
+      // Pin background circle
+      ctx.beginPath();
+      ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+      ctx.fillStyle = isSelected ? '#ec4899' : '#6366f1';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Enemy Icon/Label
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('👾', cx, cy);
+
+      // Text label box above pin
+      const labelText = `W${wIdx+1}: ${enemy.type || 'Enemy'} (${ex}, ${ey})`;
+      ctx.font = '700 9px Outfit, sans-serif';
+      const textWidth = ctx.measureText(labelText).width;
+      
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+      ctx.fillRect(cx - textWidth/2 - 4, cy - 23, textWidth + 8, 14);
+      ctx.strokeStyle = isSelected ? '#ec4899' : '#818cf8';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cx - textWidth/2 - 4, cy - 23, textWidth + 8, 14);
+
+      ctx.fillStyle = isSelected ? '#f472b6' : '#a78bfa';
+      ctx.fillText(labelText, cx, cy - 16);
+
+      ctx.restore();
+    });
+  });
 }
 
 // ─── Zone list UI ───────────────────────────────
@@ -683,6 +973,7 @@ function setTool(t){
 function cvPos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
 
 canvas.addEventListener('mousedown',e=>{
+  if(pickCallback) return;
   const cp=cvPos(e),rw=rawWorld(cp.x,cp.y),sw=canvasToWorld(cp.x,cp.y);
   if(tool==='rect'){isDrawRect=true;dStart={...sw};dCur={...sw};}
   else if(tool==='portal'){isDrawRect=true;dStart={...sw};dCur={...sw};}
@@ -710,6 +1001,7 @@ canvas.addEventListener('mousedown',e=>{
 });
 
 canvas.addEventListener('mousemove',e=>{
+  if(pickCallback) return;
   const cp=cvPos(e),rw=rawWorld(cp.x,cp.y),sw=canvasToWorld(cp.x,cp.y);
   tt.style.left=(e.clientX+14)+'px';tt.style.top=(e.clientY-8)+'px';tt.style.opacity='1';
   tt.textContent=`${Math.round(rw.x)}, ${Math.round(rw.y)}`;
@@ -728,6 +1020,7 @@ canvas.addEventListener('mousemove',e=>{
 });
 
 canvas.addEventListener('mouseup',e=>{
+  if(pickCallback) return;
   const cp=cvPos(e),sw=canvasToWorld(cp.x,cp.y);
   if((tool==='rect'||tool==='portal')&&isDrawRect){
     isDrawRect=false;
@@ -753,6 +1046,7 @@ canvas.addEventListener('mouseup',e=>{
 });
 
 canvas.addEventListener('mouseleave',()=>{
+  if(pickCallback) return;
   tt.style.opacity='0';document.getElementById('icur').textContent='—';
   isPainting=false;isErasingPaint=false;currentStroke=null;
 });
@@ -809,6 +1103,25 @@ document.getElementById('btn-clear').addEventListener('click',()=>{
   pushH();zones=[];strokes=[];selIdx=-1;updateZoneList();render();setStatus('Cleared');
 });
 document.getElementById('gtog').addEventListener('change',e=>{gridOn=e.target.checked;render();});
+document.getElementById('btn-apply-size').addEventListener('click',()=>{
+  const w=parseInt(document.getElementById('inp-world-w').value);
+  const h=parseInt(document.getElementById('inp-world-h').value);
+  if(w>0 && h>0){
+    WORLD_W=w; WORLD_H=h;
+    setupCanvas();
+    setStatus('Map size updated');
+  }
+});
+const onSizeInputChange = () => {
+  const w=parseInt(document.getElementById('inp-world-w').value);
+  const h=parseInt(document.getElementById('inp-world-h').value);
+  if(w>0 && h>0){
+    WORLD_W=w; WORLD_H=h;
+    setupCanvas();
+  }
+};
+document.getElementById('inp-world-w').addEventListener('change', onSizeInputChange);
+document.getElementById('inp-world-h').addEventListener('change', onSizeInputChange);
 document.getElementById('stog').addEventListener('change',e=>{snapOn=e.target.checked;});
 const bsz=document.getElementById('brush-size');
 bsz.addEventListener('input',()=>{brushSize=parseInt(bsz.value);document.getElementById('brush-val').textContent=brushSize+'px';});
@@ -844,21 +1157,40 @@ document.addEventListener('keydown',e=>{
   if(e.key===']'&&brushSize<40){brushSize=Math.min(40,brushSize+2);bsz.value=brushSize;document.getElementById('brush-val').textContent=brushSize+'px';}
 });
 
-// ─── Levels Configurator ────────────────────────
-document.getElementById('tab-btn-map').addEventListener('click',()=>{
-  document.getElementById('tab-btn-map').classList.add('active');
-  document.getElementById('tab-btn-levels').classList.remove('active');
-  document.getElementById('tab-map').classList.add('active');
-  document.getElementById('tab-levels').classList.remove('active');
-  document.getElementById('cw').style.display='flex';
-});
+// ─── Tab switching ────────────────────────────────
+let currentActiveTab = 'map';
+
+function syncLevelMapCanvas() {
+  if (currentLevelIndex < 0 || currentLevelIndex >= allLevels.length) return;
+  const lv = allLevels[currentLevelIndex];
+  if (!lv || !lv.map) return;
+  const targetMap = allMaps.find(m => m.name === lv.map);
+  if (targetMap && (!currentMap || currentMap.name !== targetMap.name)) {
+    selectMap(targetMap);
+  }
+}
+
+function switchTab(activeId){
+  currentActiveTab = activeId;
+  ['map','levels','seq'].forEach(id=>{
+    document.getElementById('tab-btn-'+id).classList.toggle('active', id===activeId);
+    document.getElementById('tab-'+id).classList.toggle('active', id===activeId);
+  });
+  // Canvas stays visible for all tabs so map preview and enemy pins are always shown
+  document.getElementById('cw').style.display = 'flex';
+  if (activeId === 'levels') {
+    syncLevelMapCanvas();
+  }
+  render();
+}
+document.getElementById('tab-btn-map').addEventListener('click',()=>switchTab('map'));
 document.getElementById('tab-btn-levels').addEventListener('click',()=>{
-  document.getElementById('tab-btn-levels').classList.add('active');
-  document.getElementById('tab-btn-map').classList.remove('active');
-  document.getElementById('tab-levels').classList.add('active');
-  document.getElementById('tab-map').classList.remove('active');
-  document.getElementById('cw').style.display='none';
+  switchTab('levels');
   if(allLevels.length===0) fetchLevels();
+});
+document.getElementById('tab-btn-seq').addEventListener('click',()=>{
+  switchTab('seq');
+  initSequenceTab();
 });
 
 async function fetchLevels() {
@@ -871,91 +1203,369 @@ async function fetchLevels() {
   }
 }
 
+
+// Cache for spawn zones per map name
+const spawnZoneCache = {};
+
+async function getSpawnZonesForMap(mapName) {
+  if (spawnZoneCache[mapName] !== undefined) return spawnZoneCache[mapName];
+  try {
+    const r = await fetch(`/maps/${mapName}_collisions.json?t=${Date.now()}`);
+    if (!r.ok) { spawnZoneCache[mapName] = []; return []; }
+    const data = await r.json();
+    const zonesArr = Array.isArray(data) ? data : (data.zones || []);
+    const result = zonesArr
+      .filter(z => z.type === 'spawn_enemy')
+      .map((z, i) => ({
+        label: z.label || `Zone ${i+1}`,
+        x: Math.round(z.x + z.width / 2),
+        y: Math.round(z.y + z.height / 2),
+        idx: i
+      }));
+    spawnZoneCache[mapName] = result;
+    return result;
+  } catch(e) {
+    spawnZoneCache[mapName] = [];
+    return [];
+  }
+}
+
+// --- Sidebar Resize ---
+(function() {
+  const handle = document.getElementById('sidebar-resize');
+  const sidebar = document.getElementById('sidebar');
+  if (!handle || !sidebar) return;
+  let dragging = false, startX = 0, startW = 0;
+  handle.addEventListener('mousedown', e => {
+    dragging = true; startX = e.clientX; startW = sidebar.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const w = Math.max(180, Math.min(480, startW + (e.clientX - startX)));
+    sidebar.style.width = w + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+})();
+
+// --- Canvas Pick Mode ---
+let pickCallback = null;
+window._currentlyPickingEnemy = null;
+
+function enterPickMode(callback, enemyRef = null) {
+  pickCallback = callback;
+  window._currentlyPickingEnemy = enemyRef;
+  const hint = document.getElementById('pick-overlay-hint');
+  const cw = document.getElementById('cw');
+  if (hint) hint.style.display = 'block';
+  if (cw) cw.style.cursor = 'crosshair';
+  render();
+}
+
+function exitPickMode() {
+  pickCallback = null;
+  window._currentlyPickingEnemy = null;
+  const hint = document.getElementById('pick-overlay-hint');
+  const cw = document.getElementById('cw');
+  if (hint) hint.style.display = 'none';
+  if (cw) cw.style.cursor = '';
+  render();
+}
+
+// Hook canvas click for pick mode (100% precise world coordinate conversion)
+document.getElementById('ec').addEventListener('click', (e) => {
+  if (!pickCallback) return;
+  const cp = cvPos(e);
+  const rw = snapOn ? canvasToWorld(cp.x, cp.y) : rawWorld(cp.x, cp.y);
+  const worldX = Math.max(0, Math.min(WORLD_W, Math.round(rw.x)));
+  const worldY = Math.max(0, Math.min(WORLD_H, Math.round(rw.y)));
+  
+  pickCallback(worldX, worldY);
+  exitPickMode();
+  switchTab('levels');
+});
+
 function renderLevelsList() {
   const container = document.getElementById('levels-list');
   container.innerHTML = '';
   allLevels.forEach((lv, i) => {
     const div = document.createElement('div');
     div.className = 'level-item' + (currentLevelIndex === i ? ' active' : '');
-    div.innerHTML = `<span style="font-size:12px;font-weight:600">Level ${lv.level}</span><span style="font-size:10px;color:var(--muted)">${lv.map}</span>`;
-    div.addEventListener('click', () => { currentLevelIndex = i; renderLevelsList(); renderLevelDetails(); });
+    const waveCount = lv.waves ? lv.waves.reduce((acc, w) => acc + w.length, 0) : 0;
+    div.innerHTML = `
+      <span class="level-item-num">#${lv.level}</span>
+      <span class="level-item-map">${lv.map || '—'}</span>
+      <span class="level-item-waves">${lv.waves ? lv.waves.length : 0}W · ${waveCount}E</span>
+    `;
+    div.addEventListener('click', () => {
+      currentLevelIndex = i;
+      renderLevelsList();
+      renderLevelDetails();
+    });
     container.appendChild(div);
   });
+  const det = document.getElementById('level-details');
   if (currentLevelIndex >= 0 && currentLevelIndex < allLevels.length) {
-    document.getElementById('level-details').style.display = 'flex';
+    det.style.display = 'flex';
     renderLevelDetails();
   } else {
-    document.getElementById('level-details').style.display = 'none';
+    det.style.display = 'none';
   }
 }
 
-function renderLevelDetails() {
+async function renderLevelDetails() {
   const lv = allLevels[currentLevelIndex];
-  if(!lv) return;
+  if (!lv) return;
+
   const mapSelect = document.getElementById('level-map-select');
+  mapSelect.innerHTML = allMaps.map(m => `<option value="${m.name}" ${lv.map===m.name?'selected':''}>${m.name}</option>`).join('');
   mapSelect.value = lv.map;
-  mapSelect.onchange = (e) => { lv.map = e.target.value; renderLevelsList(); };
+  mapSelect.onchange = (e) => {
+    lv.map = e.target.value;
+    delete spawnZoneCache[lv.map]; // invalidate cache
+    renderLevelsList();
+    renderLevelDetails();
+  };
+
+  // Fetch spawn zones for this map
+  const spawnZones = await getSpawnZonesForMap(lv.map);
 
   const wContainer = document.getElementById('waves-container');
   wContainer.innerHTML = '';
+
   lv.waves.forEach((wave, wIndex) => {
     const wCard = document.createElement('div');
     wCard.className = 'wave-card';
-    
+
     const wHead = document.createElement('div');
     wHead.className = 'wave-header';
-    wHead.innerHTML = `<span>Wave ${wIndex + 1}</span>`;
-    
+    const wTitle = document.createElement('span');
+    wTitle.innerHTML = `⚔ Wave ${wIndex + 1} <span style="font-size:9px;color:var(--muted);font-weight:400">(${wave.length} enemy)</span>`;
     const delWaveBtn = document.createElement('button');
     delWaveBtn.className = 'tbtn danger';
-    delWaveBtn.style.padding = '0 4px';
-    delWaveBtn.innerHTML = '×';
+    delWaveBtn.style.cssText = 'padding:1px 7px;font-size:12px';
+    delWaveBtn.innerHTML = '× Del';
     delWaveBtn.onclick = () => { lv.waves.splice(wIndex, 1); renderLevelDetails(); };
+    wHead.appendChild(wTitle);
     wHead.appendChild(delWaveBtn);
     wCard.appendChild(wHead);
-    
+
+    // Enemy list
     const eList = document.createElement('div');
+    eList.style.cssText = 'padding:4px 0 2px';
+
     wave.forEach((enemy, eIndex) => {
-      const row = document.createElement('div');
-      row.className = 'enemy-row';
-      
-      const sel = document.createElement('select');
-      sel.style.flex = '1';
-      sel.innerHTML = AVAILABLE_ENEMIES.map(e => `<option value="${e}" ${enemy.type===e?'selected':''}>${e}</option>`).join('');
-      sel.onchange = (e) => { enemy.type = e.target.value; };
-      
-      const countInput = document.createElement('input');
-      countInput.type = 'number';
-      countInput.value = enemy.count || 1;
-      countInput.min = 1;
-      countInput.style.width = '40px';
-      countInput.onchange = (e) => { enemy.count = parseInt(e.target.value); };
-      
-      const delEBtn = document.createElement('button');
-      delEBtn.className = 'tbtn';
-      delEBtn.style.padding = '0 4px';
-      delEBtn.innerHTML = '×';
-      delEBtn.onclick = () => { wave.splice(eIndex, 1); renderLevelDetails(); };
-      
-      row.appendChild(sel);
-      row.appendChild(countInput);
-      row.appendChild(delEBtn);
-      eList.appendChild(row);
+      const card = document.createElement('div');
+      card.className = 'enemy-card';
+
+      // ── Head: Type + Count + Del ──
+      const head = document.createElement('div');
+      head.className = 'enemy-card-head';
+
+      const typeSel = document.createElement('select');
+      typeSel.innerHTML = AVAILABLE_ENEMIES.map(e => `<option value="${e}" ${enemy.type===e?'selected':''}>${e}</option>`).join('');
+      typeSel.onchange = e => { enemy.type = e.target.value; renderLevelDetails(); };
+
+      const cntWrap = document.createElement('div');
+      cntWrap.className = 'enemy-count-wrap';
+      const cntLbl = document.createElement('label');
+      cntLbl.textContent = '×';
+      const cntIn = document.createElement('input');
+      cntIn.type = 'number'; cntIn.min = 1; cntIn.value = enemy.count || 1;
+      cntIn.onchange = e => { enemy.count = Math.max(1, parseInt(e.target.value) || 1); };
+      cntWrap.appendChild(cntLbl);
+      cntWrap.appendChild(cntIn);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'enemy-del-btn';
+      delBtn.innerHTML = '×';
+      delBtn.onclick = () => { wave.splice(eIndex, 1); renderLevelDetails(); };
+
+      head.appendChild(typeSel);
+      head.appendChild(cntWrap);
+      head.appendChild(delBtn);
+      card.appendChild(head);
+
+      // ── Spawn config section ──
+      const spawnSec = document.createElement('div');
+      spawnSec.className = 'spawn-section';
+
+      const secLabel = document.createElement('div');
+      secLabel.className = 'spawn-section-label';
+      secLabel.innerHTML = `<span style="color:var(--cyan)">📍</span> Spawn Position`;
+      spawnSec.appendChild(secLabel);
+
+      // Tabs: Random / Zone / X-Y
+      const tabs = document.createElement('div');
+      tabs.className = 'spawn-tabs';
+      const content = document.createElement('div');
+      content.className = 'spawn-content';
+
+      const useXY = (enemy.x !== undefined && enemy.y !== undefined);
+      const useZone = (!useXY && enemy.spawnZone !== undefined);
+      const curMode = useXY ? 'xy' : (useZone ? 'zone' : 'random');
+
+      const showContent = (mode) => {
+        content.innerHTML = '';
+        if (mode === 'random') {
+          delete enemy.x; delete enemy.y; delete enemy.spawnZone;
+          const h = document.createElement('div');
+          h.className = 'spawn-hint';
+          h.innerHTML = '🎲 Picks a random <code>spawn_enemy</code> zone each spawn';
+          content.appendChild(h);
+
+        } else if (mode === 'zone') {
+          delete enemy.x; delete enemy.y;
+          const row = document.createElement('div');
+          row.className = 'spawn-zone-row';
+          if (spawnZones.length === 0) {
+            const msg = document.createElement('span');
+            msg.style.cssText = 'font-size:10px;color:var(--red)';
+            msg.innerHTML = `⚠ No spawn_enemy zones found on <b>${lv.map}</b>. Add them in Map Editor first.`;
+            row.appendChild(msg);
+          } else {
+            const zSel = document.createElement('select');
+            zSel.innerHTML = spawnZones.map((z, i) =>
+              `<option value="${i}" ${enemy.spawnZone===i?'selected':''}>[Zone ${i+1}] (${z.x}, ${z.y})</option>`
+            ).join('');
+            if (enemy.spawnZone === undefined) enemy.spawnZone = 0;
+            zSel.value = enemy.spawnZone;
+            
+            const coordEl = document.createElement('span');
+            coordEl.className = 'spawn-zone-coord';
+            const updateCoord = () => {
+              const z = spawnZones[parseInt(zSel.value)];
+              coordEl.textContent = z ? `${z.x}, ${z.y}` : '';
+              enemy.spawnZone = parseInt(zSel.value);
+            };
+            zSel.onchange = updateCoord;
+            updateCoord();
+
+            // Pick closest zone from map button
+            const pickBtn = document.createElement('button');
+            pickBtn.className = 'spawn-pick-btn';
+            pickBtn.innerHTML = '🎯 Pick';
+            pickBtn.title = 'Click on map to select closest zone';
+            pickBtn.onclick = () => {
+              enterPickMode((wx, wy) => {
+                if (spawnZones.length === 0) return;
+                let closestIdx = 0;
+                let minDist = Infinity;
+                spawnZones.forEach((z, idx) => {
+                  const dist = Math.hypot(z.x - wx, z.y - wy);
+                  if (dist < minDist) {
+                    minDist = dist;
+                    closestIdx = idx;
+                  }
+                });
+                enemy.spawnZone = closestIdx;
+                renderLevelDetails();
+                setStatus(`✅ Selected closest zone: ${spawnZones[closestIdx].label} (${spawnZones[closestIdx].x}, ${spawnZones[closestIdx].y})`);
+              });
+            };
+
+            row.appendChild(zSel);
+            row.appendChild(coordEl);
+            row.appendChild(pickBtn);
+          }
+          content.appendChild(row);
+
+        } else if (mode === 'xy') {
+          delete enemy.spawnZone;
+          // Auto-initialize coordinates to map center if not defined, so X/Y tab is immediately active/saved
+          if (enemy.x === undefined || enemy.y === undefined) {
+            enemy.x = Math.round(WORLD_W / 2);
+            enemy.y = Math.round(WORLD_H / 2);
+          }
+          const row = document.createElement('div');
+          row.className = 'spawn-xy-row';
+
+          const lx = document.createElement('label'); lx.textContent = 'X';
+          const xIn = document.createElement('input');
+          xIn.type = 'number'; xIn.placeholder = '0';
+          xIn.value = enemy.x !== undefined ? enemy.x : '';
+          xIn.oninput = e => { enemy.x = parseInt(e.target.value) || 0; };
+
+          const ly = document.createElement('label'); ly.textContent = 'Y';
+          const yIn = document.createElement('input');
+          yIn.type = 'number'; yIn.placeholder = '0';
+          yIn.value = enemy.y !== undefined ? enemy.y : '';
+          yIn.oninput = e => { enemy.y = parseInt(e.target.value) || 0; };
+
+          // Pick from map button
+          const pickBtn = document.createElement('button');
+          pickBtn.className = 'spawn-pick-btn';
+          pickBtn.innerHTML = '🎯 Pick';
+          pickBtn.title = 'Click on map to set position';
+          pickBtn.onclick = () => {
+            enterPickMode((wx, wy) => {
+              enemy.x = wx; enemy.y = wy;
+              xIn.value = wx; yIn.value = wy;
+              setStatus(`✅ Spawn set to (${wx}, ${wy})`);
+              renderLevelDetails();
+              render();
+            }, enemy);
+          };
+
+          row.appendChild(lx); row.appendChild(xIn);
+          row.appendChild(ly); row.appendChild(yIn);
+          row.appendChild(pickBtn);
+          content.appendChild(row);
+        }
+      };
+
+      ['🎲 Random', '📍 Zone', '✏ X/Y'].forEach((label, ti) => {
+        const key = ['random','zone','xy'][ti];
+        const t = document.createElement('button');
+        t.className = 'spawn-tab' + (curMode === key ? ' active' : '');
+        t.textContent = label;
+        t.onclick = () => {
+          tabs.querySelectorAll('.spawn-tab').forEach(b => b.classList.remove('active'));
+          t.classList.add('active');
+          showContent(key);
+          renderLevelDetails(); // Re-render to sync the updated property states
+        };
+        tabs.appendChild(t);
+      });
+
+      showContent(curMode);
+      spawnSec.appendChild(tabs);
+      spawnSec.appendChild(content);
+      card.appendChild(spawnSec);
+      eList.appendChild(card);
     });
+
     wCard.appendChild(eList);
-    
+
     const addEBtn = document.createElement('button');
-    addEBtn.className = 'tbtn';
-    addEBtn.style.width = '100%';
-    addEBtn.style.justifyContent = 'center';
-    addEBtn.style.marginTop = '4px';
-    addEBtn.innerText = '+ Enemy';
+    addEBtn.className = 'tbtn success';
+    addEBtn.style.cssText = 'width:calc(100% - 16px);margin:4px 8px 8px;justify-content:center;font-size:11px';
+    addEBtn.textContent = '+ Add Enemy';
     addEBtn.onclick = () => { wave.push({type: AVAILABLE_ENEMIES[0], count: 1}); renderLevelDetails(); };
     wCard.appendChild(addEBtn);
-    
+
     wContainer.appendChild(wCard);
   });
+
+  if (lv.waves.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'text-align:center;padding:24px;color:var(--muted);font-size:11px;line-height:1.6';
+    empty.innerHTML = 'No waves yet.<br>Click <b>+ Wave</b> to add one.';
+    wContainer.appendChild(empty);
+  }
 }
+
+
+
+
 
 document.getElementById('btn-add-level').addEventListener('click', () => {
   const newLvNum = allLevels.length + 1;
@@ -994,6 +1604,182 @@ document.getElementById('btn-save-levels').addEventListener('click', async () =>
 
 
 window.addEventListener('resize',()=>setupCanvas());
+
+// ─── Map Sequence Manager ─────────────────────────────
+let mapSequence = []; // [{map: 'mapName'}] — ordered list
+let seqInitialized = false;
+let seqDragSrc = null;
+
+async function initSequenceTab() {
+  if (seqInitialized && mapSequence.length > 0) {
+    renderSequence();
+    return;
+  }
+  // Load from levels.json
+  try {
+    const r = await fetch('/api/levels');
+    const levels = await r.json();
+    // Build ordered list from existing levels (deduplicate map appearances)
+    mapSequence = levels.map(lv => ({ map: lv.map }));
+    seqInitialized = true;
+    renderSequence();
+    setStatus('Sequence loaded from levels config');
+  } catch(e) {
+    mapSequence = allMaps.map(m => ({ map: m.name }));
+    seqInitialized = true;
+    renderSequence();
+    setStatus('⚠ Using map list as fallback');
+  }
+}
+
+function renderSequence() {
+  const list = document.getElementById('seq-list');
+  const pick = document.getElementById('seq-map-pick');
+
+  // Populate add dropdown
+  pick.innerHTML = allMaps.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+
+  if (mapSequence.length === 0) {
+    list.innerHTML = `<div class="seq-empty">Belum ada map dalam sequence.<br>Klik <span style="color:var(--green)">+ Add</span> untuk mulai menambahkan.</div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  mapSequence.forEach((entry, idx) => {
+    const mapMeta = allMaps.find(m => m.name === entry.map);
+    const hasCollision = mapMeta ? mapMeta.hasCollision : false;
+    const isFirst = idx === 0;
+    const isLast = idx === mapSequence.length - 1;
+
+    const item = document.createElement('div');
+    item.className = 'seq-item';
+    item.draggable = true;
+    item.dataset.idx = idx;
+
+    const badge = isFirst
+      ? `<span class="seq-badge" style="color:var(--yellow);border-color:var(--yellow)">Start</span>`
+      : `<span class="seq-badge" style="color:var(--muted);border-color:var(--border)">#${idx+1}</span>`;
+
+    const collisionBadge = hasCollision
+      ? `<span class="seq-badge" style="color:var(--green);border-color:var(--green)">✔ setup</span>`
+      : `<span class="seq-badge" style="color:var(--red);border-color:var(--red)">! no collision</span>`;
+
+    item.innerHTML = `
+      <span class="seq-num">${idx+1}</span>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap">
+          <span class="seq-map-name">${entry.map}</span>
+          ${badge}${collisionBadge}
+        </div>
+        <div class="seq-map-sub">${hasCollision ? 'Collision configured' : 'No collision data yet'}</div>
+      </div>
+      <div class="seq-move">
+        <button title="Move Up" data-action="up" data-idx="${idx}" ${isFirst?'disabled style="opacity:.3"':''}>▲</button>
+        <button title="Move Down" data-action="dn" data-idx="${idx}" ${isLast?'disabled style="opacity:.3"':''}>▼</button>
+      </div>
+      <button class="seq-del" title="Remove from sequence" data-del="${idx}">×</button>
+    `;
+
+    // Drag-to-reorder
+    item.addEventListener('dragstart', e => {
+      seqDragSrc = idx;
+      item.classList.add('seq-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    item.addEventListener('dragend', () => item.classList.remove('seq-dragging'));
+    item.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect='move'; item.classList.add('seq-over'); });
+    item.addEventListener('dragleave', () => item.classList.remove('seq-over'));
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      item.classList.remove('seq-over');
+      if (seqDragSrc !== null && seqDragSrc !== idx) {
+        const moved = mapSequence.splice(seqDragSrc, 1)[0];
+        mapSequence.splice(idx, 0, moved);
+        seqDragSrc = null;
+        renderSequence();
+      }
+    });
+
+    // Move up/down buttons
+    item.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const i = parseInt(btn.dataset.idx);
+        if (btn.dataset.action === 'up' && i > 0) {
+          [mapSequence[i-1], mapSequence[i]] = [mapSequence[i], mapSequence[i-1]];
+        } else if (btn.dataset.action === 'dn' && i < mapSequence.length - 1) {
+          [mapSequence[i], mapSequence[i+1]] = [mapSequence[i+1], mapSequence[i]];
+        }
+        renderSequence();
+      });
+    });
+
+    // Delete button
+    const delBtn = item.querySelector('[data-del]');
+    delBtn.addEventListener('click', () => {
+      mapSequence.splice(idx, 1);
+      renderSequence();
+    });
+
+    list.appendChild(item);
+  });
+}
+
+document.getElementById('btn-seq-add').addEventListener('click', () => {
+  const pick = document.getElementById('seq-map-pick');
+  const mapName = pick.value;
+  if (!mapName) return;
+  mapSequence.push({ map: mapName });
+  renderSequence();
+  setStatus(`Map "${mapName}" ditambahkan ke sequence`);
+});
+
+document.getElementById('btn-seq-reset').addEventListener('click', () => {
+  if (!confirm('Reset sequence mengikuti daftar level yang ada?')) return;
+  fetch('/api/levels').then(r => r.json()).then(levels => {
+    mapSequence = levels.map(lv => ({ map: lv.map }));
+    renderSequence();
+    setStatus('Sequence direset dari levels config');
+  }).catch(() => {
+    mapSequence = allMaps.map(m => ({ map: m.name }));
+    renderSequence();
+  });
+});
+
+document.getElementById('btn-seq-save').addEventListener('click', async () => {
+  if (mapSequence.length === 0) {
+    setStatus('❌ Sequence kosong!');
+    return;
+  }
+  // Rebuild levels.json preserving wave data, reordering by new sequence
+  try {
+    const r = await fetch('/api/levels');
+    let existingLevels = await r.json();
+
+    // Build new ordered levels array
+    const newLevels = mapSequence.map((entry, i) => {
+      const existing = existingLevels.find(lv => lv.map === entry.map);
+      return {
+        level: i + 1,
+        map: entry.map,
+        waves: existing ? existing.waves : []
+      };
+    });
+
+    const res = await fetch('/api/levels/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(newLevels)
+    });
+    if (res.ok) {
+      setStatus(`✅ Map sequence saved! ${mapSequence.length} maps. Level 1 → "${mapSequence[0].map}"`);
+      allLevels = newLevels;
+    } else {
+      setStatus('❌ Save sequence failed');
+    }
+  } catch(e) {
+    setStatus('❌ Error: ' + e.message);
+  }
+});
 
 // ─── Init ───────────────────────────────────────
 fetchMaps().then(()=>{

@@ -77,6 +77,87 @@ function mapEditorApiPlugin() {
         });
       });
 
+      // POST /api/maps/delete — delete a map (PNG + collisions + levels references)
+      server.middlewares.use('/api/maps/delete', (req, res) => {
+        if (req.method !== 'POST') { res.statusCode = 405; res.end(); return; }
+        let body = '';
+        req.on('data', d => body += d);
+        req.on('end', () => {
+          try {
+            const { mapName } = JSON.parse(body);
+            if (!mapName) throw new Error('Missing mapName');
+            const safe = path.basename(mapName).replace(/[^a-zA-Z0-9_-]/g, '');
+            
+            // Delete png and json files
+            const pngPath = path.join(MAPS_DIR, `${safe}.png`);
+            const jsonPath = path.join(MAPS_DIR, `${safe}_collisions.json`);
+            if (fs.existsSync(pngPath)) fs.unlinkSync(pngPath);
+            if (fs.existsSync(jsonPath)) fs.unlinkSync(jsonPath);
+
+            // Clean up levels.json
+            const levelsPath = path.join(__dirname, 'public', 'levels.json');
+            if (fs.existsSync(levelsPath)) {
+              const levelsData = JSON.parse(fs.readFileSync(levelsPath, 'utf-8') || '[]');
+              const filtered = levelsData.filter(lv => lv.map !== safe);
+              // Re-index levels sequentially
+              const reindexed = filtered.map((lv, idx) => ({
+                ...lv,
+                level: idx + 1
+              }));
+              fs.writeFileSync(levelsPath, JSON.stringify(reindexed, null, 2));
+            }
+
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ ok: true }));
+          } catch (e) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+      });
+
+      // POST /api/maps/rename — rename a map
+      server.middlewares.use('/api/maps/rename', (req, res) => {
+        if (req.method !== 'POST') { res.statusCode = 405; res.end(); return; }
+        let body = '';
+        req.on('data', d => body += d);
+        req.on('end', () => {
+          try {
+            const { oldMapName, newMapName } = JSON.parse(body);
+            if (!oldMapName || !newMapName) throw new Error('Missing oldMapName or newMapName');
+            const safeOld = path.basename(oldMapName).replace(/[^a-zA-Z0-9_-]/g, '');
+            const safeNew = path.basename(newMapName).replace(/[^a-zA-Z0-9_-]/g, '');
+
+            const oldPng = path.join(MAPS_DIR, `${safeOld}.png`);
+            const newPng = path.join(MAPS_DIR, `${safeNew}.png`);
+            const oldJson = path.join(MAPS_DIR, `${safeOld}_collisions.json`);
+            const newJson = path.join(MAPS_DIR, `${safeNew}_collisions.json`);
+
+            if (fs.existsSync(oldPng)) fs.renameSync(oldPng, newPng);
+            if (fs.existsSync(oldJson)) fs.renameSync(oldJson, newJson);
+
+            // Update levels.json references
+            const levelsPath = path.join(__dirname, 'public', 'levels.json');
+            if (fs.existsSync(levelsPath)) {
+              const levelsData = JSON.parse(fs.readFileSync(levelsPath, 'utf-8') || '[]');
+              const updated = levelsData.map(lv => {
+                if (lv.map === safeOld) {
+                  return { ...lv, map: safeNew };
+                }
+                return lv;
+              });
+              fs.writeFileSync(levelsPath, JSON.stringify(updated, null, 2));
+            }
+
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ ok: true }));
+          } catch (e) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+      });
+
       // POST /api/hitbox/save — save hitbox config for all characters
       server.middlewares.use('/api/hitbox/save', (req, res) => {
         if (req.method !== 'POST') { res.statusCode = 405; res.end(); return; }

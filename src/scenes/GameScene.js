@@ -14,126 +14,140 @@ export default class GameScene extends Phaser.Scene {
     this.overrideMapName = data.map || null;
     // Always reset leaving flag when a new game scene starts
     if (multiplayer) multiplayer.isLeaving = false;
+
+    // Synchronously fetch levels.json upfront so map name is 100% known before preload()
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', `/levels.json?t=${Date.now()}`, false);
+      xhr.send(null);
+      if (xhr.status === 200) {
+        const levelsData = JSON.parse(xhr.responseText);
+        if (this.cache.json.exists('levels_config')) {
+          this.cache.json.remove('levels_config');
+        }
+        this.cache.json.add('levels_config', levelsData);
+        
+        const levelConfig = levelsData.find(l => l.level === this.currentLevelNum) || levelsData[0];
+        this.currentMapName = this.overrideMapName || (levelConfig ? levelConfig.map : 'Dust');
+      } else {
+        this.currentMapName = this.overrideMapName || 'Dust';
+      }
+    } catch(e) {
+      this.currentMapName = this.overrideMapName || 'Dust';
+    }
   }
 
   preload() {
-    // Add Loading Bar
-    const width = this.cameras.main.width;
-    const height = this.cameras.main.height;
+    // Hide UI elements during load, except gear
+    const vControls = document.getElementById('virtual-controls');
+    if (vControls) vControls.style.display = 'none';
+    const pingDisp = document.getElementById('ping-display');
+    if (pingDisp) pingDisp.style.display = 'none';
+    const minimap = document.getElementById('html-minimap');
+    if (minimap) minimap.style.display = 'none';
     
-    const progressBar = this.add.graphics();
-    const progressBox = this.add.graphics();
-    progressBox.fillStyle(0x222222, 0.8);
-    progressBox.fillRect(width / 2 - 160, height / 2 - 25, 320, 50);
-
-    const loadingText = this.make.text({
-      x: width / 2,
-      y: height / 2 - 50,
-      text: 'Loading Map...',
-      style: {
-        font: 'bold 20px "Segoe UI", Arial, sans-serif',
-        fill: '#ffffff'
-      }
-    });
-    loadingText.setOrigin(0.5, 0.5);
-
-    const percentText = this.make.text({
-      x: width / 2,
-      y: height / 2,
-      text: '0%',
-      style: {
-        font: 'bold 18px "Segoe UI", Arial, sans-serif',
-        fill: '#000000'
-      }
-    });
-    percentText.setOrigin(0.5, 0.5);
+    // Show HTML Loading Overlay
+    const loadingOverlay = document.getElementById('map-loading-overlay');
+    const loadingBar = document.getElementById('map-loading-bar');
+    const loadingText = document.getElementById('map-loading-text');
+    if (loadingOverlay) loadingOverlay.style.display = 'flex';
+    if (loadingBar) loadingBar.style.width = '0%';
+    if (loadingText) loadingText.innerText = '0%';
 
     const onProgress = (value) => {
-      if (!percentText || !percentText.active) return;
-      percentText.setText(parseInt(value * 100) + '%');
-      progressBar.clear();
-      progressBar.fillStyle(0x4ade80, 1);
-      progressBar.fillRect(width / 2 - 150, height / 2 - 15, 300 * value, 30);
+      if (loadingBar) loadingBar.style.width = `${parseInt(value * 100)}%`;
+      if (loadingText) loadingText.innerText = `${parseInt(value * 100)}%`;
     };
 
     const onComplete = () => {
       this.load.off('progress', onProgress);
       this.load.off('complete', onComplete);
-      if (progressBar.active) progressBar.destroy();
-      if (progressBox.active) progressBox.destroy();
-      if (loadingText.active) loadingText.destroy();
-      if (percentText.active) percentText.destroy();
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
+      
+      // Re-show UI elements after loading completes
+      if (pingDisp) pingDisp.style.display = 'flex';
+      if (minimap) minimap.style.display = 'block';
     };
 
     this.load.on('progress', onProgress);
     this.load.on('complete', onComplete);
 
-    // Load levels config
-    this.load.json('levels_config', '/levels.json');
-    
-    const loadMapAssets = (levelsData) => {
-      const levelConfig = levelsData.find(l => l.level === this.currentLevelNum) || levelsData[0];
-      const mapName = this.overrideMapName || (levelConfig ? levelConfig.map : '1');
-      if (mapName) {
-        if (this.textures.exists('map_bg')) {
-          this.textures.remove('map_bg');
-        }
-        if (this.cache.json.exists('map_collisions')) {
-          this.cache.json.remove('map_collisions');
-        }
-        this.load.image('map_bg', `/maps/${mapName}.png`);
-        this.load.json('map_collisions', `/maps/${mapName}_collisions.json`);
-      }
-    };
-
-    if (this.cache.json.exists('levels_config')) {
-      const data = this.cache.json.get('levels_config');
-      loadMapAssets(data);
-    } else {
-      this.load.once('filecomplete-json-levels_config', (key, type, data) => {
-        loadMapAssets(data);
-      });
+    // Queue target map assets immediately using resolved currentMapName
+    const mapName = this.currentMapName || 'Dust';
+    if (!this.textures.exists(`map_${mapName}`)) {
+      this.load.image(`map_${mapName}`, `/maps/${mapName}.png`);
     }
-    
-    // Load hitbox configs from hitbox editor
-    this.load.json('hitbox_config', '/characters/hitboxes.json');
-    
-    // Load arrow for ranged attacks (now from lyra)
+    if (this.cache.json.exists(`collisions_${mapName}`)) {
+      this.cache.json.remove(`collisions_${mapName}`);
+    }
+    this.load.json(`collisions_${mapName}`, `/maps/${mapName}_collisions.json?t=${Date.now()}`);
+
+    // Clear and queue hitbox config
+    if (this.cache.json.exists('hitbox_config')) {
+      this.cache.json.remove('hitbox_config');
+    }
+    this.load.json('hitbox_config', `/characters/hitboxes.json?t=${Date.now()}`);
+
+    // Load arrow for ranged attacks
     this.load.image('arrow', '/characters/lyra/arrow.png');
-    
+
     // Dynamically load projectiles defined in hitboxes.json
     this.load.once('filecomplete-json-hitbox_config', (key, type, data) => {
+      let needLoadProj = false;
       for (const charKey in data) {
         for (const animKey in data[charKey]) {
           const proj = data[charKey][animKey].proj;
           if (proj && proj.enabled) {
             const getPath = (p) => p.startsWith('/public') ? p.replace('/public', '') : p;
-            if (proj.animated && proj.path) {
+            if (proj.animated && proj.path && !this.textures.exists(proj.texture + '_moving')) {
               this.load.spritesheet(proj.texture + '_moving', getPath(proj.path), { frameWidth: proj.fw, frameHeight: proj.fh });
-            } else if (proj.path) {
+              needLoadProj = true;
+            } else if (proj.path && !this.textures.exists(proj.texture)) {
               this.load.image(proj.texture, getPath(proj.path));
+              needLoadProj = true;
             }
-            if (proj.explodePath) {
+            if (proj.explodePath && !this.textures.exists(proj.texture + '_explode')) {
               this.load.spritesheet(proj.texture + '_explode', getPath(proj.explodePath), { frameWidth: proj.efw, frameHeight: proj.efh });
+              needLoadProj = true;
             }
           }
         }
       }
+      if (needLoadProj) {
+        this.load.start();
+      }
     });
-
   }
 
   create() {
-    // 1. Define Fixed World Size (e.g., 800x800 pixels)
-    this.WORLD_WIDTH = 800;
-    this.WORLD_HEIGHT = 600;
+    // ── Load collision zones and map dimensions ──
+    const collisionRaw = this.cache.json.get(`collisions_${this.currentMapName}`);
+    let collisionData = [];
+
+    if (collisionRaw && !Array.isArray(collisionRaw)) {
+      // New format with custom world size
+      this.WORLD_WIDTH = collisionRaw.width || 800;
+      this.WORLD_HEIGHT = collisionRaw.height || 600;
+      collisionData = collisionRaw.zones || [];
+    } else {
+      // Legacy format (just an array) - fallback to background image dimensions
+      if (this.textures.exists(`map_${this.currentMapName}`)) {
+        const bgFrame = this.textures.getFrame(`map_${this.currentMapName}`);
+        this.WORLD_WIDTH = bgFrame ? bgFrame.width : 800;
+        this.WORLD_HEIGHT = bgFrame ? bgFrame.height : 600;
+      } else {
+        this.WORLD_WIDTH = 800;
+        this.WORLD_HEIGHT = 600;
+      }
+      collisionData = collisionRaw || [];
+    }
 
     // Apply limits to the physics engine and the camera
     this.physics.world.setBounds(0, 0, this.WORLD_WIDTH, this.WORLD_HEIGHT);
     this.cameras.main.setBounds(0, 0, this.WORLD_WIDTH, this.WORLD_HEIGHT);
 
     // Add map background
-    this.add.image(0, 0, 'map_bg').setOrigin(0, 0).setDisplaySize(this.WORLD_WIDTH, this.WORLD_HEIGHT);
+    this.add.image(0, 0, `map_${this.currentMapName}`).setOrigin(0, 0).setDisplaySize(this.WORLD_WIDTH, this.WORLD_HEIGHT);
 
     // ── Collision Debug Toggle ──
     this.physics.world.createDebugGraphic();
@@ -148,7 +162,6 @@ export default class GameScene extends Phaser.Scene {
 
     // ── Build collision zones from editor data ──
     this.collisionGroup = this.physics.add.staticGroup();
-    const collisionData = this.cache.json.get('map_collisions') || [];
     collisionData.forEach(zone => {
       // Only 'red' / 'block' zones are hard collision; skip spawns, portals, etc.
       if (zone.type !== 'red') return;
@@ -508,6 +521,8 @@ export default class GameScene extends Phaser.Scene {
     let enemyIdCounter = 0;
     this.spawnEnemy = (x, y, type, hpOverride, scale = 1, id = null) => {
       const enemyConfig = CHARACTER_CONFIG[type];
+      if (!enemyConfig) return null;
+      
       const hp = hpOverride || enemyConfig.hp;
       const initialEnemyTexture = enemyConfig.singleSpritesheet ? `${type}_all` : `${type}_idle`;
       const enemy = this.physics.add.sprite(x, y, initialEnemyTexture);
@@ -582,23 +597,83 @@ export default class GameScene extends Phaser.Scene {
     const currentLevelConfig = levelsData.find(l => l.level === this.currentLevelNum) || levelsData[0];
     this.waves = currentLevelConfig ? currentLevelConfig.waves : [];
     this.currentWaveIndex = 0;
-    
+    this.levelComplete = false;
+
+    // ── Wave HUD helpers ──────────────────────────────────
+    this.updateWaveHud = (currentWave, allCleared = false) => {
+      const hud = document.getElementById('wave-hud');
+      const txt = document.getElementById('wave-hud-text');
+      if (!hud) return;
+      if (this.waves.length === 0) { hud.style.display = 'none'; return; }
+      hud.style.display = 'block';
+      if (allCleared) {
+        if (txt) txt.innerText = 'ALL WAVES CLEARED';
+        hud.classList.add('all-cleared');
+      } else {
+        if (txt) txt.innerText = `WAVE ${currentWave} / ${this.waves.length}`;
+        hud.classList.remove('all-cleared');
+      }
+    };
+
+    this.showWaveAnnounce = (waveNum) => {
+      const el = document.getElementById('wave-announce');
+      const txt = document.getElementById('wave-announce-text');
+      if (!el || !txt) return;
+      txt.textContent = `WAVE ${waveNum}`;
+      // restart animation by removing and re-adding the element
+      el.style.display = 'none';
+      void el.offsetWidth; // force reflow
+      el.style.display = 'block';
+      txt.style.animation = 'none';
+      void txt.offsetWidth;
+      txt.style.animation = '';
+      this.time.delayedCall(2100, () => { el.style.display = 'none'; });
+    };
+
+    this.showPortalNotify = () => {
+      // Portal notify removed — wave HUD color change is sufficient indicator
+    };
+
+    this.showMapAnnounce = (name) => {
+      const el = document.getElementById('map-announce');
+      const txt = document.getElementById('map-announce-title');
+      if (!el || !txt || !name) return;
+      const strName = String(name || 'MAP');
+      txt.textContent = strName.replace(/_/g, ' ').toUpperCase();
+      el.style.display = 'none';
+      void el.offsetWidth; // force reflow
+      el.style.display = 'block';
+      this.time.delayedCall(4000, () => {
+        if (el) el.style.display = 'none';
+      });
+    };
+
     this.startWave = (index) => {
       const wave = this.waves[index];
       if (!wave) return;
+      this.updateWaveHud(index + 1);
       wave.forEach(enemyConfig => {
         const count = enemyConfig.count || 1;
         for (let i = 0; i < count; i++) {
           let ex = this.WORLD_WIDTH / 2;
           let ey = this.WORLD_HEIGHT / 2;
-          if (this.enemySpawns && this.enemySpawns.length > 0) {
+
+          if (enemyConfig.x !== undefined && enemyConfig.y !== undefined) {
+            // Explicit X/Y from editor
+            ex = enemyConfig.x;
+            ey = enemyConfig.y;
+          } else if (enemyConfig.spawnZone !== undefined && this.enemySpawns.length > 0) {
+            // Specific spawn zone index from editor
+            const zoneIdx = enemyConfig.spawnZone;
+            const zone = this.enemySpawns[zoneIdx] || this.enemySpawns[0];
+            if (zone) { ex = zone.x + zone.width / 2; ey = zone.y + zone.height / 2; }
+          } else if (this.enemySpawns && this.enemySpawns.length > 0) {
+            // Random enemy spawn zone
             const spawn = Phaser.Math.RND.pick(this.enemySpawns);
             ex = spawn.x + spawn.width / 2;
             ey = spawn.y + spawn.height / 2;
-          } else if (enemyConfig.x !== undefined && enemyConfig.y !== undefined) {
-            ex = enemyConfig.x;
-            ey = enemyConfig.y;
           }
+
           const hp = enemyConfig.hpOverride || enemyConfig.hp;
           const scale = enemyConfig.scale || 1;
           this.spawnEnemy(ex, ey, enemyConfig.type, hp, scale);
@@ -1108,6 +1183,10 @@ export default class GameScene extends Phaser.Scene {
       // 11. Mission Complete listener (all players see the UI)
       multiplayer.room.onMessage("mission_complete", () => {
         if (!isCurrentScene()) return;
+        this.levelComplete = true;
+        if (this.updateWaveHud) this.updateWaveHud(this.waves.length, true);
+        if (this.showPortalNotify) this.showPortalNotify();
+
         const overlay = document.getElementById('mission-complete-overlay');
         const subText = document.getElementById('mission-sub-text');
         if (overlay) {
@@ -1115,7 +1194,7 @@ export default class GameScene extends Phaser.Scene {
           overlay.style.display = 'flex';
         }
 
-        this.showFloatingText(this.player.x, this.player.y - 40, `Level Cleared! Enter Portal to proceed`, '#4ade80');
+        // this.showWaveAnnounce("ALL WAVES CLEARED!");
 
         this.time.delayedCall(4500, () => {
           if (overlay) overlay.style.display = 'none';
@@ -1187,9 +1266,24 @@ export default class GameScene extends Phaser.Scene {
         if (GameScene._sceneGeneration !== myGeneration) return;
         if (waitOverlay) waitOverlay.style.display = 'none';
         this.isGameReady = true;
+        this.showMapAnnounce(this.currentMapName || 'Map');
       });
+
+      // Intercept state: check if all players are already loaded (handles race condition)
+      let allReady = true;
+      let count = 0;
+      multiplayer.room.state.players.forEach((p) => {
+        count++;
+        if (!p.isLoaded) allReady = false;
+      });
+      if (count > 0 && allReady) {
+        if (waitOverlay) waitOverlay.style.display = 'none';
+        this.isGameReady = true;
+        this.showMapAnnounce(this.currentMapName || 'Map');
+      }
     } else {
       this.isGameReady = true;
+      this.showMapAnnounce(this.currentMapName);
     }
   }
 
@@ -1209,21 +1303,20 @@ export default class GameScene extends Phaser.Scene {
         // All waves cleared
         if (!this.levelComplete) {
           this.levelComplete = true;
+          this.updateWaveHud(this.waves.length, true);
           
           if (multiplayer.room) {
             multiplayer.safeSend("mission_complete", {});
           } else {
-            // Crisp Top Floating HTML Mission Complete Banner for Singleplayer
+            // Show slim mission complete banner
             const overlay = document.getElementById('mission-complete-overlay');
             const subText = document.getElementById('mission-sub-text');
             if (overlay) {
               if (subText) subText.innerText = `LEVEL ${this.currentLevelNum} CLEARED!`;
               overlay.style.display = 'flex';
             }
-
-            this.showFloatingText(this.player.x, this.player.y - 40, `Level Cleared! Enter Portal to proceed`, '#4ade80');
-
-            this.time.delayedCall(4500, () => {
+            // this.showWaveAnnounce("ALL WAVES CLEARED!");
+            this.time.delayedCall(3000, () => {
               if (overlay) overlay.style.display = 'none';
             });
           }
@@ -2091,9 +2184,19 @@ export default class GameScene extends Phaser.Scene {
       container.innerHTML = '';
     }
     const missionOverlay = document.getElementById('mission-complete-overlay');
-    if (missionOverlay) {
-      missionOverlay.style.display = 'none';
-    }
+    if (missionOverlay) missionOverlay.style.display = 'none';
+
+    const waveHud = document.getElementById('wave-hud');
+    if (waveHud) { waveHud.style.display = 'none'; waveHud.classList.remove('all-cleared'); }
+
+    const portalNotify = document.getElementById('portal-notify');
+    if (portalNotify) { portalNotify.style.display = 'none'; portalNotify.style.opacity = '1'; }
+
+    const waveAnnounce = document.getElementById('wave-announce');
+    if (waveAnnounce) waveAnnounce.style.display = 'none';
+
+    const mapAnnounce = document.getElementById('map-announce');
+    if (mapAnnounce) mapAnnounce.style.display = 'none';
   }
 }
 

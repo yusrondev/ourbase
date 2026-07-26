@@ -111,12 +111,28 @@
       </div>
     </div>
 
-    <!-- Mission Complete HTML Overlay -->
-    <div id="mission-complete-overlay" style="display: none;" class="mission-complete-overlay">
-      <div class="mission-complete-modal">
-        <div class="mission-title">MISSION COMPLETE</div>
-        <div class="mission-sub" id="mission-sub-text">LEVEL 1 CLEARED!</div>
+    <!-- Mission Complete Banner (slim top bar) -->
+    <!-- <div id="mission-complete-overlay" style="display: none;" class="mission-banner">
+      <div class="mission-banner-inner">
+        <span class="mission-banner-icon">✅</span>
+        <span id="mission-sub-text" class="mission-banner-text">LEVEL 1 CLEARED!</span>
       </div>
+    </div> -->
+
+    <!-- Wave HUD (top center) -->
+    <div id="wave-hud" style="display: none;" class="wave-hud">
+      <div id="wave-hud-text" class="wave-hud-text">WAVE 1 / 3</div>
+    </div>
+
+    <!-- New Wave Announcement (center) -->
+    <div id="wave-announce" style="display: none;" class="wave-announce">
+      <div id="wave-announce-text" class="wave-announce-text">WAVE 1</div>
+    </div>
+
+    <!-- Map Announcement Banner (center) -->
+    <div id="map-announce" style="display: none;" class="map-announce-overlay">
+      <div class="map-announce-subtitle">NOW ENTERING</div>
+      <div id="map-announce-title" class="map-announce-title">DUNGEON DEPTHS</div>
     </div>
 
     <!-- Waiting for Players Overlay -->
@@ -136,6 +152,15 @@
       <div id="action-buttons">
         <button id="btn-attack" class="action-btn-v">A</button>
         <button id="btn-skill" class="action-btn-v">B</button>
+      </div>
+    </div>
+
+    <!-- Map Loading Overlay -->
+    <div id="map-loading-overlay" style="display: none;" class="map-loading-overlay">
+      <div class="map-loading-modal">
+        <div class="map-loading-title">LOADING MAP</div>
+        <div class="map-loading-bar-bg"><div id="map-loading-bar" class="map-loading-bar"></div></div>
+        <div class="map-loading-text" id="map-loading-text">0%</div>
       </div>
     </div>
 

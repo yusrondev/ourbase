@@ -1063,56 +1063,42 @@ body {
   filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.8));
 }
 
-/* ── MISSION COMPLETE TOP FLOATING BANNER ─────────────────────── */
-.mission-complete-overlay {
+/* ── MISSION COMPLETE SLIM BANNER ──────────────────────────── */
+.mission-banner {
   position: absolute;
-  top: 24px;
+  top: 58px;
   left: 50%;
   transform: translateX(-50%);
-  width: auto;
-  height: auto;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
+  z-index: 160;
   pointer-events: none;
-  animation: fadeIn 0.4s ease-out;
+  animation: portalNotifySlide 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-
-.mission-complete-modal {
+.mission-banner-inner {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 12px 32px;
-  background: rgba(15, 23, 42, 0.82);
-  border: 1.5px solid rgba(74, 222, 128, 0.7);
-  border-radius: 14px;
-  box-shadow: 0 0 25px rgba(74, 222, 128, 0.3), inset 0 0 10px rgba(74, 222, 128, 0.1);
-  backdrop-filter: blur(4px);
-  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-
-.mission-title {
+  gap: 10px;
+  background: rgba(20, 83, 45, 0.92);
+  border: 1px solid rgba(74, 222, 128, 0.6);
+  border-radius: 20px;
+  padding: 8px 20px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 18px rgba(74, 222, 128, 0.35);
+  white-space: nowrap;
   font-family: 'Outfit', sans-serif;
-  font-size: 22px;
+}
+.mission-banner-icon { font-size: 18px; }
+.mission-banner-text {
+  font-size: 15px;
   font-weight: 800;
   color: #4ade80;
-  text-shadow: 0 0 10px rgba(74, 222, 128, 0.7);
-  letter-spacing: 3px;
-  margin: 0;
+  letter-spacing: 1.5px;
+}
+.mission-banner-hint {
+  font-size: 11px;
+  color: #86efac;
+  opacity: 0.85;
 }
 
-.mission-sub {
-  font-family: 'Outfit', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  color: #f1f5f9;
-  letter-spacing: 1px;
-  margin-top: 2px;
-  opacity: 0.95;
-}
 
 /* ── In-Game Ping Display ─────────────────────────────── */
 #ping-display {
@@ -1267,4 +1253,197 @@ body {
   border-color: rgba(100, 116, 139, 0.6);
   color: #94a3b8;
   transform: none;
+}
+
+/* ── Map Loading Overlay ────────────────────────────────── */
+.map-loading-overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(15, 23, 42, 0.95);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+  backdrop-filter: blur(5px);
+}
+.map-loading-modal { text-align: center; color: #fff; }
+.map-loading-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  margin-bottom: 20px;
+  color: #4ade80;
+  text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+}
+.map-loading-bar-bg {
+  width: 320px; height: 24px;
+  background: rgba(30, 41, 59, 0.8);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 0 auto 10px auto;
+  border: 1px solid #334155;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+.map-loading-bar {
+  width: 0%; height: 100%;
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+  transition: width 0.2s ease-out;
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+}
+.map-loading-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 18px; font-weight: bold; color: #e2e8f0;
+}
+
+/* ── Wave HUD (top center) ──────────────────────────────── */
+.wave-hud {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  pointer-events: none;
+  animation: waveHudFadeIn 0.4s ease;
+}
+@keyframes waveHudFadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.wave-hud-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #a78bfa;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  border-radius: 20px;
+  padding: 5px 16px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  text-shadow: 0 0 8px rgba(167, 139, 250, 0.4);
+  text-transform: uppercase;
+}
+.wave-hud.all-cleared .wave-hud-text {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.45);
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.25);
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+}
+
+/* ── Portal Notify ──────────────────────────────────────── */
+.portal-notify {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
+  pointer-events: none;
+  animation: portalNotifySlide 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes portalNotifySlide {
+  from { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+.portal-notify-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(20, 83, 45, 0.88);
+  border: 1px solid rgba(74, 222, 128, 0.5);
+  border-radius: 12px;
+  padding: 10px 20px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.35), 0 4px 16px rgba(0,0,0,0.4);
+  font-family: 'Outfit', sans-serif;
+  white-space: nowrap;
+}
+.portal-notify-icon { font-size: 22px; }
+.portal-notify-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #4ade80;
+  letter-spacing: 1px;
+}
+.portal-notify-sub {
+  font-size: 11px;
+  color: #86efac;
+  margin-top: 1px;
+}
+
+/* ── Wave Announce (center screen) ─────────────────────── */
+.wave-announce {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 130;
+  pointer-events: none;
+  text-align: center;
+}
+.wave-announce-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: #f8fafc;
+  text-shadow:
+    0 0 20px rgba(129, 140, 248, 0.8),
+    0 0 40px rgba(129, 140, 248, 0.4),
+    0 4px 8px rgba(0,0,0,0.6);
+  animation: waveAnnounce 2s ease forwards;
+}
+@keyframes waveAnnounce {
+  0%   { opacity: 0; transform: scale(0.8); }
+  15%  { opacity: 1; transform: scale(1.05); }
+  30%  { opacity: 1; transform: scale(1); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.05) translateY(-10px); }
+}
+
+/* ── Map Transition Announcement (center) ─────────────────── */
+.map-announce-overlay {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  pointer-events: none;
+  text-align: center;
+  font-family: 'Outfit', sans-serif;
+  width: 90%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: mapAnnounceFade 4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+.map-announce-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  color: #a78bfa;
+  text-shadow: 0 0 10px rgba(167, 139, 250, 0.45);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.map-announce-title {
+  font-size: clamp(20px, 4.5vw, 38px);
+  font-weight: 900;
+  letter-spacing: 5px;
+  line-height: 1.25;
+  color: #ffffff;
+  text-transform: uppercase;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.6), 0 4px 12px rgba(0, 0, 0, 0.85);
+  word-wrap: break-word;
+  white-space: normal;
+  width: 100%;
+}
+@keyframes mapAnnounceFade {
+  0% { opacity: 0; transform: translate(-50%, -42%) scale(0.95); filter: blur(3px); }
+  15% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
+  75% { opacity: 1; transform: translate(-50%, -50%) scale(1.02); filter: blur(0); }
+  100% { opacity: 0; transform: translate(-50%, -58%) scale(1.05); filter: blur(4px); }
 }
