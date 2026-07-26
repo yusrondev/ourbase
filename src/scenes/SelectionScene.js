@@ -9,25 +9,7 @@ export default class SelectionScene extends Phaser.Scene {
   }
 
   preload() {
-    // Load all character spritesheets here so they are ready globally
-    Object.keys(CHARACTER_CONFIG).forEach(key => {
-      const config = CHARACTER_CONFIG[key];
-      if (config.singleSpritesheet) {
-        this.load.spritesheet(
-          `${key}_all`, 
-          `/characters/${config.folder}/${config.singleSpritesheet}`, 
-          { frameWidth: config.frameWidth, frameHeight: config.frameHeight }
-        );
-      } else {
-        Object.keys(config.animations).forEach(anim => {
-          this.load.spritesheet(
-            `${key}_${anim}`, 
-            `/characters/${config.folder}/${anim}.png`, 
-            { frameWidth: config.frameWidth, frameHeight: config.frameHeight }
-          );
-        });
-      }
-    });
+    // Assets are now preloaded globally in PreloadScene before this scene starts.
   }
 
   create() {
@@ -86,6 +68,8 @@ export default class SelectionScene extends Phaser.Scene {
   }
 
   resizeUI(gameSize) {
+    if (!this.cameras || !this.cameras.main) return;
+    
     const width = gameSize.width;
     const height = gameSize.height;
 

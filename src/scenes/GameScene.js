@@ -46,77 +46,29 @@ export default class GameScene extends Phaser.Scene {
     const minimap = document.getElementById('html-minimap');
     if (minimap) minimap.style.display = 'none';
     
-    // Show HTML Loading Overlay
-    const loadingOverlay = document.getElementById('map-loading-overlay');
-    const loadingBar = document.getElementById('map-loading-bar');
-    const loadingText = document.getElementById('map-loading-text');
-    if (loadingOverlay) loadingOverlay.style.display = 'flex';
-    if (loadingBar) loadingBar.style.width = '0%';
-    if (loadingText) loadingText.innerText = '0%';
-
-    const onProgress = (value) => {
-      if (loadingBar) loadingBar.style.width = `${parseInt(value * 100)}%`;
-      if (loadingText) loadingText.innerText = `${parseInt(value * 100)}%`;
-    };
-
-    const onComplete = () => {
-      this.load.off('progress', onProgress);
-      this.load.off('complete', onComplete);
-      if (loadingOverlay) loadingOverlay.style.display = 'none';
-      
-      // Re-show UI elements after loading completes
-      if (pingDisp) pingDisp.style.display = 'flex';
-      if (minimap) minimap.style.display = 'block';
-    };
-
-    this.load.on('progress', onProgress);
-    this.load.on('complete', onComplete);
-
-    // Queue target map assets immediately using resolved currentMapName
+    // Check if target map assets are already loaded globally
     const mapName = this.currentMapName || 'Dust';
+    let needsLoad = false;
+    
     if (!this.textures.exists(`map_${mapName}`)) {
       this.load.image(`map_${mapName}`, `/maps/${mapName}.png`);
+      needsLoad = true;
     }
-    if (this.cache.json.exists(`collisions_${mapName}`)) {
-      this.cache.json.remove(`collisions_${mapName}`);
+    if (!this.cache.json.exists(`collisions_${mapName}`)) {
+      this.load.json(`collisions_${mapName}`, `/maps/${mapName}_collisions.json?t=${Date.now()}`);
+      needsLoad = true;
     }
-    this.load.json(`collisions_${mapName}`, `/maps/${mapName}_collisions.json?t=${Date.now()}`);
-
-    // Clear and queue hitbox config
-    if (this.cache.json.exists('hitbox_config')) {
-      this.cache.json.remove('hitbox_config');
+    
+    if (!needsLoad) {
+      // Re-show UI elements immediately if already loaded
+      if (pingDisp) pingDisp.style.display = 'flex';
+      if (minimap) minimap.style.display = 'block';
+    } else {
+      this.load.once('complete', () => {
+        if (pingDisp) pingDisp.style.display = 'flex';
+        if (minimap) minimap.style.display = 'block';
+      });
     }
-    this.load.json('hitbox_config', `/characters/hitboxes.json?t=${Date.now()}`);
-
-    // Load arrow for ranged attacks
-    this.load.image('arrow', '/characters/lyra/arrow.png');
-
-    // Dynamically load projectiles defined in hitboxes.json
-    this.load.once('filecomplete-json-hitbox_config', (key, type, data) => {
-      let needLoadProj = false;
-      for (const charKey in data) {
-        for (const animKey in data[charKey]) {
-          const proj = data[charKey][animKey].proj;
-          if (proj && proj.enabled) {
-            const getPath = (p) => p.startsWith('/public') ? p.replace('/public', '') : p;
-            if (proj.animated && proj.path && !this.textures.exists(proj.texture + '_moving')) {
-              this.load.spritesheet(proj.texture + '_moving', getPath(proj.path), { frameWidth: proj.fw, frameHeight: proj.fh });
-              needLoadProj = true;
-            } else if (proj.path && !this.textures.exists(proj.texture)) {
-              this.load.image(proj.texture, getPath(proj.path));
-              needLoadProj = true;
-            }
-            if (proj.explodePath && !this.textures.exists(proj.texture + '_explode')) {
-              this.load.spritesheet(proj.texture + '_explode', getPath(proj.explodePath), { frameWidth: proj.efw, frameHeight: proj.efh });
-              needLoadProj = true;
-            }
-          }
-        }
-      }
-      if (needLoadProj) {
-        this.load.start();
-      }
-    });
   }
 
   create() {

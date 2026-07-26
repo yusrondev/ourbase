@@ -232,6 +232,13 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
         rewrite: (path) => path.replace(/^\/colyseus/, ''),
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            if (err.code !== 'ECONNRESET') {
+              console.log('proxy error', err);
+            }
+          });
+        }
       }
     }
   }

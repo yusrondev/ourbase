@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import PreloadScene from './scenes/PreloadScene.js';
 import SelectionScene from './scenes/SelectionScene.js';
 import GameScene from './scenes/GameScene.js';
 import VirtualJoystickPlugin from 'phaser3-rex-plugins/plugins/virtualjoystick-plugin.js';
@@ -32,7 +33,7 @@ const config = {
       start: true
     }]
   },
-  scene: [SelectionScene, GameScene]
+  scene: [PreloadScene, SelectionScene, GameScene]
 };
 
 const game = new Phaser.Game(config);
@@ -388,12 +389,11 @@ if (splashStartBtn) {
       } catch(e) {}
     }
 
-    // Fade out splash, show lobby
+    // Fade out splash, trigger global load
     splashScreen.classList.add('splash-fade-out');
     setTimeout(() => {
       splashScreen.style.display = 'none';
-      const startScreen = document.getElementById('start-screen');
-      if (startScreen) startScreen.style.display = 'flex';
+      window.dispatchEvent(new Event('start-global-load'));
     }, 500);
   });
 }
@@ -414,7 +414,10 @@ let hasTransitioned = false;
 
 function setupRoomListeners() {
   hasTransitioned = false;
-  multiplayer.room.state.players.onAdd(() => renderPlayerList());
+  multiplayer.room.state.players.onAdd((p) => {
+    renderPlayerList();
+    p.onChange(() => renderPlayerList());
+  });
   multiplayer.room.state.players.onRemove(() => renderPlayerList());
   multiplayer.room.state.onChange(() => {
     if (hasTransitioned) return;
