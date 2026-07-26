@@ -128,6 +128,26 @@ export default class GameScene extends Phaser.Scene {
       this.collisionGroup.add(zoneObj);
     });
 
+    // --- Render Collision Map on Minimap ---
+    const minimapBg = document.getElementById('minimap-bg');
+    if (minimapBg) {
+      const mapW = 120; // Match width in CSS
+      const mapH = 90;  // Match height in CSS
+      const scaleX = mapW / this.WORLD_WIDTH;
+      const scaleY = mapH / this.WORLD_HEIGHT;
+      let collisionHtml = '';
+      collisionData.forEach(zone => {
+        if (zone.type === 'red') {
+          const zx = zone.x * scaleX;
+          const zy = zone.y * scaleY;
+          const zw = zone.width * scaleX;
+          const zh = zone.height * scaleY;
+          collisionHtml += `<div style="position: absolute; left: ${zx}px; top: ${zy}px; width: ${zw}px; height: ${zh}px; background-color: rgba(255, 255, 255, 0.3);"></div>`;
+        }
+      });
+      minimapBg.innerHTML = collisionHtml;
+    }
+
     // ── Build spawn points from editor data ──
     this.playerSpawns = collisionData.filter(z => z.type === 'spawn_player');
     this.enemySpawns = collisionData.filter(z => z.type === 'spawn_enemy');

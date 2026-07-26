@@ -65,14 +65,16 @@
       "hp": 40,
       "attack": 45,
       "speed": 80,
+      "scale": 1,
       "attackType": "ranged",
-      "attackRange": 120
+      "attackRange": 120,
+      "uiOffsetY": -30
     },
     "walk": {
-      "bodyW": 12.999999999999998,
-      "bodyH": 14.333333333333332,
-      "offsetX": 42.66666666666667,
-      "offsetY": 52.66666666666667,
+      "bodyW": 10.666666666666664,
+      "bodyH": 10.999999999999998,
+      "offsetX": 45.00000000000001,
+      "offsetY": 56.00000000000001,
       "attackW": 40,
       "attackH": 40,
       "attackOx": 0,
@@ -111,14 +113,27 @@
       "hp": 180,
       "attack": 30,
       "speed": 90,
+      "scale": 1,
       "attackType": "ranged",
-      "attackRange": 150
+      "attackRange": 150,
+      "uiOffsetY": -30
     },
     "idle": {
       "bodyW": 30,
       "bodyH": 40,
       "offsetX": 55,
       "offsetY": 50,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    },
+    "walk": {
+      "bodyW": 12,
+      "bodyH": 11.666666666666668,
+      "offsetX": 66,
+      "offsetY": 86.33333333333333,
       "attackW": 40,
       "attackH": 40,
       "attackOx": 0,
@@ -131,8 +146,10 @@
       "hp": 80,
       "attack": 15,
       "speed": 100,
+      "scale": 2,
       "attackType": "melee",
-      "attackRange": 0
+      "attackRange": 0,
+      "uiOffsetY": -30
     },
     "attack": {
       "bodyW": 15,
@@ -144,6 +161,17 @@
       "attackOx": 60.49999999999999,
       "attackOy": 30.333333333333332,
       "attackFrame": 5
+    },
+    "walk": {
+      "bodyW": 9.666666666666668,
+      "bodyH": 7,
+      "offsetX": 45.83333333333333,
+      "offsetY": 52.333333333333336,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
     }
   },
   "slime": {
@@ -151,8 +179,10 @@
       "hp": 50,
       "attack": 10,
       "speed": 80,
+      "scale": 2,
       "attackType": "melee",
-      "attackRange": 0
+      "attackRange": 0,
+      "uiOffsetY": -30
     },
     "attack": {
       "bodyW": 15,
@@ -164,6 +194,17 @@
       "attackOx": 47.83333333333333,
       "attackOy": 48.00000000000001,
       "attackFrame": 5
+    },
+    "walk": {
+      "bodyW": 7.333333333333333,
+      "bodyH": 4,
+      "offsetX": 44.5,
+      "offsetY": 53.833333333333336,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
     }
   },
   "demon": {
@@ -171,8 +212,10 @@
       "hp": 120,
       "attack": 25,
       "speed": 90,
+      "scale": 2,
       "attackType": "melee",
-      "attackRange": 0
+      "attackRange": 0,
+      "uiOffsetY": -30
     },
     "attack": {
       "bodyW": 15,
@@ -184,6 +227,28 @@
       "attackOx": 59.16666666666667,
       "attackOy": 50.50000000000001,
       "attackFrame": 6
+    },
+    "idle": {
+      "bodyW": 7.5,
+      "bodyH": 4.666666666666666,
+      "offsetX": 45.666666666666664,
+      "offsetY": 54.66666666666667,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
+    },
+    "walk": {
+      "bodyW": 7.5,
+      "bodyH": 4.666666666666666,
+      "offsetX": 45.666666666666664,
+      "offsetY": 54.66666666666667,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
     }
   },
   "kaizer": {
@@ -191,8 +256,10 @@
       "hp": 250,
       "attack": 30,
       "speed": 120,
+      "scale": 1,
       "attackType": "melee",
-      "attackRange": 0
+      "attackRange": 0,
+      "uiOffsetY": -30
     },
     "idle": {
       "bodyW": 30,
@@ -210,10 +277,10 @@
       "bodyH": 40,
       "offsetX": 110,
       "offsetY": 105,
-      "attackW": 50,
-      "attackH": 50,
-      "attackOx": 125,
-      "attackOy": 125,
+      "attackW": 81.33333333333333,
+      "attackH": 116.66666666666666,
+      "attackOx": 144.33333333333334,
+      "attackOy": 49.00000000000001,
       "attackFrame": 5
     },
     "attack2": {
@@ -221,11 +288,22 @@
       "bodyH": 40,
       "offsetX": 110,
       "offsetY": 105,
-      "attackW": 60,
-      "attackH": 60,
-      "attackOx": 125,
-      "attackOy": 125,
+      "attackW": 73,
+      "attackH": 78.66666666666667,
+      "attackOx": 150.33333333333334,
+      "attackOy": 74.33333333333333,
       "attackFrame": 5
+    },
+    "walk": {
+      "bodyW": 14.666666666666666,
+      "bodyH": 14,
+      "offsetX": 115.66666666666667,
+      "offsetY": 155.33333333333334,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
     }
   },
   "orc": {
@@ -233,8 +311,10 @@
       "hp": 150,
       "attack": 30,
       "speed": 70,
+      "scale": 2,
       "attackType": "melee",
-      "attackRange": 0
+      "attackRange": 0,
+      "uiOffsetY": -30
     },
     "attack": {
       "bodyW": 15,
@@ -246,6 +326,17 @@
       "attackOx": 61.5,
       "attackOy": 48.166666666666664,
       "attackFrame": 4
+    },
+    "walk": {
+      "bodyW": 7.166666666666667,
+      "bodyH": 4,
+      "offsetX": 47.5,
+      "offsetY": 54.333333333333336,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
     }
   },
   "nox": {
@@ -253,6 +344,7 @@
       "hp": 130,
       "attack": 25,
       "speed": 80,
+      "scale": 1.5,
       "attackType": "melee",
       "attackRange": 0,
       "uiOffsetY": -3
@@ -260,8 +352,8 @@
     "idle": {
       "bodyW": 30,
       "bodyH": 40,
-      "offsetX": 55,
-      "offsetY": 50,
+      "offsetX": 41.666666666666664,
+      "offsetY": 39.77777777777778,
       "attackW": 40,
       "attackH": 40,
       "attackOx": 0,
@@ -273,7 +365,7 @@
       "bodyH": 40,
       "offsetX": 55,
       "offsetY": 50,
-      "attackW": 40,
+      "attackW": 55.333333333333336,
       "attackH": 40,
       "attackOx": 60,
       "attackOy": 40,
@@ -284,11 +376,22 @@
       "bodyH": 40,
       "offsetX": 55,
       "offsetY": 50,
-      "attackW": 40,
+      "attackW": 78,
       "attackH": 40,
-      "attackOx": 60,
+      "attackOx": 33.111111111111114,
       "attackOy": 40,
       "attackFrame": 3
+    },
+    "walk": {
+      "bodyW": 8.444444444444443,
+      "bodyH": 7.111111111111114,
+      "offsetX": 52.55555555555556,
+      "offsetY": 70.22222222222221,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
     }
   },
   "shifu": {
@@ -392,8 +495,10 @@
       "hp": 110,
       "attack": 35,
       "speed": 170,
+      "scale": 0.8,
       "attackType": "melee",
-      "attackRange": 0
+      "attackRange": 0,
+      "uiOffsetY": -30
     },
     "idle": {
       "bodyW": 17.500000000000004,
@@ -408,9 +513,9 @@
     },
     "walk": {
       "bodyW": 13.750000000000004,
-      "bodyH": 21.25,
+      "bodyH": 12.916666666666668,
       "offsetX": 89.16666666666667,
-      "offsetY": 92.91666666666667,
+      "offsetY": 101.25,
       "attackW": 40,
       "attackH": 40,
       "attackOx": 0,
@@ -445,8 +550,10 @@
       "hp": 130,
       "attack": 40,
       "speed": 160,
+      "scale": 0.8,
       "attackType": "melee",
-      "attackRange": 0
+      "attackRange": 0,
+      "uiOffsetY": -30
     },
     "attack": {
       "bodyW": 37.5,
@@ -482,10 +589,10 @@
       "attackFrame": 1
     },
     "walk": {
-      "bodyW": 15.416666666666668,
-      "bodyH": 16.66666666666667,
+      "bodyW": 11.666666666666668,
+      "bodyH": 10.83333333333334,
       "offsetX": 92.08333333333333,
-      "offsetY": 112.5,
+      "offsetY": 118.33333333333333,
       "attackW": 40,
       "attackH": 40,
       "attackOx": 0,
@@ -498,6 +605,7 @@
       "hp": 70,
       "attack": 45,
       "speed": 80,
+      "scale": 0.6,
       "attackType": "melee",
       "attackRange": 0,
       "uiOffsetY": -37
@@ -514,10 +622,10 @@
       "attackFrame": 1
     },
     "walk": {
-      "bodyW": 26.666666666666664,
-      "bodyH": 28.333333333333336,
+      "bodyW": 21.111111111111107,
+      "bodyH": 17.22222222222222,
       "offsetX": 93.27777777777777,
-      "offsetY": 111.66666666666667,
+      "offsetY": 122.77777777777779,
       "attackW": 40,
       "attackH": 40,
       "attackOx": 0,
@@ -545,6 +653,28 @@
       "attackOx": 147.7777777777778,
       "attackOy": 40,
       "attackFrame": 6
+    }
+  },
+  "monk": {
+    "stats": {
+      "hp": 50,
+      "attack": 30,
+      "speed": 160,
+      "scale": 0.5,
+      "attackType": "melee",
+      "attackRange": 0,
+      "uiOffsetY": -30
+    },
+    "walk": {
+      "bodyW": 20.666666666666664,
+      "bodyH": 22.666666666666664,
+      "offsetX": 93.33333333333333,
+      "offsetY": 112.66666666666667,
+      "attackW": 40,
+      "attackH": 40,
+      "attackOx": 0,
+      "attackOy": 0,
+      "attackFrame": 1
     }
   }
 }
